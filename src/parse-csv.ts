@@ -1,35 +1,48 @@
 export const parseCsv = (csv: string) => {
-  if (!csv) {
-    return;
-  }
+  if (!csv) return;
   const rows: string[][] = [];
 
-  // omit headers / footers and trim lines
-  for (const row of csv.split("\n")) {
-    if (!row.includes(",")) {
+  for (const line of csv.split("\n")) {
+    if (!line.includes(",")) {
       if (!rows.length) {
+        // omit headers
         continue;
       }
+      // omit footers
       break;
     }
 
-    rows.push([
-      ...row
-        .split(",")
-        .map((c) => c.trim())
-        .map((c) => {
-          if (
-            (c[0] === `"` && c[c.length - 1] === `"`) ||
-            (c[0] === `'` && c[c.length - 1] === `'`)
-          ) {
-            return c.substring(1, c.length - 1);
-          }
-          return c;
-        })
-        .map((col) => col.trim())
-        .map((col) => col.toLowerCase())
-        .map((col) => col.replace(/\s+/g, " ")),
-    ]);
+    let col = "";
+    let isEscaping = false;
+    const row: string[] = [];
+    const appendSb = () => {
+      row.push(
+        col
+          .replace(/\s+/g, " ")
+          .replace(/"([^"]*)"/g, (_, s) => `"${s.trim()}"`)
+          .trim()
+          .toLowerCase()
+      );
+      col = "";
+      isEscaping = false;
+    };
+
+    for (let i = 0; i < line.length; i++) {
+      const char = line[i];
+      if (char === "," && !isEscaping) {
+        appendSb();
+        continue;
+      }
+      if (char === '"') {
+        isEscaping = !isEscaping;
+      }
+      col += char;
+      if (i === line.length - 1) {
+        appendSb();
+      }
+    }
+
+    rows.push(row);
   }
 
   // delete columns without data
