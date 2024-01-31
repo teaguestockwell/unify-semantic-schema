@@ -1,4 +1,4 @@
-export const concatTables = (tables: { name: string; rows?: string[][] }[]) => {
+export const unionTables = (tables: { name: string; rows?: string[][] }[]) => {
   const columnIndices: { [key: string]: number } = {};
   let i = 1;
   for (const { rows } of tables) {
@@ -17,7 +17,7 @@ export const concatTables = (tables: { name: string; rows?: string[][] }[]) => {
   for (const { name, rows } of tables) {
     if (rows) {
       for (let i = 1; i < rows.length; i++) {
-        const row: string[] = Array(resRows[0].length).fill('');
+        const row: string[] = Array(resRows[0].length).fill("");
         row[0] = name;
         for (let j = 0; j < rows[0].length; j++) {
           row[columnIndices[rows[0][j]]] = rows[i][j];

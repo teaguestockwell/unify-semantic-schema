@@ -1,8 +1,15 @@
 import { getFileData } from "./get-file-data";
-import { cleanCsv } from "./clean-csv";
+import { parseCsv } from "./parse-csv";
 import { getFileNames } from "./get-file-names";
-import { concatTables } from "./concat-tables";
+import { unionTables } from "./union-tables";
 import { writeCsv } from "./write-csv";
+import { getEmbeddings } from "./get-embeddings";
+import { coalesceTable, sortTable, transformTable } from "./transform-table";
+import {
+  sampleCoalesceMap,
+  sampleComparators,
+  sampleTxMap,
+} from "./sample-transfomers";
 
 const main = async () => {
   const dir = "data";
@@ -16,10 +23,19 @@ const main = async () => {
   );
   const tables = rawFiles.map(({ name, data }) => ({
     name,
-    rows: cleanCsv(data),
+    rows: parseCsv(data),
   }));
-  const table = concatTables(tables);
-  await writeCsv(table, "./out.csv")
+  // await getEmbeddings(tables.flatMap((t) => t.rows?.[0] ?? []));
+  const unioned = unionTables(tables);
+  const coalesced = coalesceTable(unioned, sampleCoalesceMap);
+  const transformed = transformTable(coalesced, sampleTxMap);
+  const sorted = sortTable(transformed, sampleComparators);
+  await Promise.all([
+    writeCsv(unioned, "./out/unioned.csv"),
+    writeCsv(coalesced, "./out/coalesced.csv"),
+    writeCsv(transformed, "./out/transformed.csv"),
+    writeCsv(sorted, "./out/sorted.csv"),
+  ]);
 };
 
 main().catch(console.error);

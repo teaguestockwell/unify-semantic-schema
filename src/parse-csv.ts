@@ -1,4 +1,4 @@
-export const cleanCsv = (csv: string) => {
+export const parseCsv = (csv: string) => {
   if (!csv) {
     return;
   }
@@ -28,7 +28,7 @@ export const cleanCsv = (csv: string) => {
         })
         .map((col) => col.trim())
         .map((col) => col.toLowerCase())
-        .map((col) => col.replace(/\s+/g, ' '))
+        .map((col) => col.replace(/\s+/g, " ")),
     ]);
   }
 
