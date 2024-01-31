@@ -1,31 +1,17 @@
-import { createWriteStream, existsSync, unlinkSync } from "fs";
+import { existsSync, unlinkSync, writeFile } from "fs";
 
-export const writeCsv = async (
-  rows: string[][],
-  path: string
-) => {
+export const writeCsv = async (rows: string[][], path: string) => {
   if (existsSync(path)) {
-    unlinkSync(path)
+    unlinkSync(path);
   }
 
-  const fileStream = createWriteStream(path);
+  const fileContent = rows.map((row) => row.join(",") + "\n").join("");
 
-  await Promise.all(
-    rows.map((row) => {
-      return new Promise((resolve, reject) => {
-        fileStream.write(row.join(",") + "\n", (err) => {
-          if (err) {
-            reject(err);
-          } else {
-            resolve(undefined);
-          }
-        });
-      });
-    })
-  );
-
-  return await new Promise((resolve) => {
-    fileStream.end(() => {
+  return await new Promise((resolve, reject) => {
+    writeFile(path, fileContent, "utf-8", (err) => {
+      if (err) {
+        reject(err);
+      }
       resolve(undefined);
     });
   });
