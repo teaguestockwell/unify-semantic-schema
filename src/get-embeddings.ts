@@ -14,14 +14,18 @@ const getOpenAiKey = () => {
   return res;
 };
 
-const model = "text-embedding-ada-002" // paid tier "text-embedding-3-small",
+const model:
+  | "text-embedding-ada-002"
+  | "text-embedding-3-small"
+  | "text-embedding-3-large" = "text-embedding-3-small";
 
 export const getEmbeddings = async (columnNames: string[]) => {
-  const names = [...new Set<string>(columnNames.filter(s => !!s))]
-    .map((target) => {
+  const names = [...new Set<string>(columnNames.filter((s) => !!s))].map(
+    (target) => {
       const path = "../cache/" + model + "-" + target;
       return { target, cached: existsSync(path), path };
-    });
+    }
+  );
   const cachedNames = names.filter((n) => n.cached);
   const newNames = names.filter((n) => !n.cached);
 
@@ -33,7 +37,7 @@ export const getEmbeddings = async (columnNames: string[]) => {
     },
     body: JSON.stringify({
       input: newNames.map((n) => n.target),
-      model, 
+      model,
     }),
   });
 
