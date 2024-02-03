@@ -9,7 +9,7 @@ import {
   sampleCoalesceMap,
   sampleComparators,
   sampleTxMap,
-} from "./sample-transfomers";
+} from "./sample-transformers";
 
 const main = async () => {
   const dir = "data";
@@ -25,7 +25,7 @@ const main = async () => {
     name,
     rows: parseCsv(data),
   }));
-  // await getEmbeddings(tables.flatMap((t) => t.rows?.[0] ?? []));
+  const embeddings = await getEmbeddings(tables.flatMap((t) => t.rows?.[0] ?? []));
   const unioned = unionTables(tables);
   const coalesced = coalesceTable(unioned, sampleCoalesceMap);
   const transformed = transformTable(coalesced, sampleTxMap);

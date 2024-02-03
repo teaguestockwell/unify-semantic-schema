@@ -1,5 +1,15 @@
-*.csv
-*.env
-*.http
+.env
 
+cache/
+data/
+http/
 node_modules/
+out/
+
+!cache/text-embedding-3-large/.gitkeep
+!cache/text-embedding-3-small/.gitkeep
+!cache/text-embedding-ada-002/.gitkeep
+
+!data/.gitkeep
+!http/.gitkeep
+!out/.gitkeep

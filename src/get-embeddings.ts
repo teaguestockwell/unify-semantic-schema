@@ -1,10 +1,17 @@
 import { existsSync, readFile, writeFile } from "fs";
 
-type Embedding = {
+type OpenAIEmbedding = {
   object: "embedding";
   embedding: number[];
   index: number;
 };
+
+type Embedding = {
+  columnName: string;
+  target: string;
+  embedding: number[];
+}
+
 
 const getOpenAiKey = () => {
   const res = process.env.OPENAIKEY;
@@ -20,66 +27,84 @@ const model:
   | "text-embedding-3-large" = "text-embedding-3-small";
 
 export const getEmbeddings = async (columnNames: string[]) => {
-  const names = [...new Set<string>(columnNames.filter((s) => !!s))].map(
-    (target) => {
-      const path = "../cache/" + model + "-" + target;
-      return { target, cached: existsSync(path), path };
+  const requests = [...new Set<string>(columnNames)]
+    .filter((s) => !!s)
+    .map((s) => {
+      const columnName = s;
+      const target = (() => {
+        if (s[0] === `"` && s[s.length - 1] === `"`) {
+          return s.substring(1, s.length - 1);
+        }
+        return s;
+      })();
+      const path = "./cache/" + model + "/" + encodeURIComponent(target);
+      const cached = existsSync(path);
+      return { columnName, target, path, cached };
+    });
+  const localRequest = requests.filter((n) => n.cached);
+  const remoteRequests = requests.filter((n) => !n.cached);
+  const localTargets = localRequest.map((s) => s.target);
+  const remoteTargets = remoteRequests.map((s) => s.target);
+
+  console.log({ localTargets, remoteTargets });
+
+  const embeddings: Embedding[] = [];
+
+  if (remoteRequests.length) {
+    const res = await fetch("https://api.openai.com/v1/embeddings", {
+      method: "POST",
+      headers: {
+        authorization: "Bearer " + getOpenAiKey(),
+        "content-type": "application/json",
+      },
+      body: JSON.stringify({
+        input: remoteTargets,
+        model,
+      }),
+    });
+
+    if (!res.ok) {
+      throw new Error(res.status + " " + (await res.text()));
     }
-  );
-  const cachedNames = names.filter((n) => n.cached);
-  const newNames = names.filter((n) => !n.cached);
 
-  const res = await fetch("https://api.openai.com/v1/embeddings", {
-    method: "POST",
-    headers: {
-      authorization: "Bearer " + getOpenAiKey(),
-      "content-type": "application/json",
-    },
-    body: JSON.stringify({
-      input: newNames.map((n) => n.target),
-      model,
-    }),
-  });
+    const {
+      data,
+    }: {
+      object: "list";
+      data: OpenAIEmbedding[];
+    } = await res.json();
 
-  if (!res.ok) {
-    throw new Error(res.status + " " + (await res.text()));
+    await Promise.all(
+      data.map((d) => {
+        return new Promise((resolve, reject) => {
+          writeFile(remoteRequests[d.index].path, JSON.stringify(d), (err) => {
+            if (err) {
+              reject(err);
+            }
+            resolve(undefined);
+          });
+        });
+      })
+    );
+    embeddings.push(
+      ...data.map((d) => ({
+        target: remoteRequests[d.index].target,
+        embedding: d.embedding,
+        columnName: remoteRequests[d.index].columnName,
+      }))
+    );
   }
 
-  const {
-    data,
-  }: {
-    object: "list";
-    data: Embedding[];
-  } = await res.json();
-
-  await Promise.allSettled(
-    data.map((d) => {
-      return new Promise((resolve, reject) => {
-        writeFile(names[d.index].path, JSON.stringify(d), (err) => {
-          if (err) {
-            reject(err);
-          }
-          resolve(undefined);
-        });
-      });
-    })
-  );
-
-  const embeddings = data.map((d) => ({
-    target: names[d.index].target,
-    embedding: d.embedding,
-  }));
-
   const cachedEmbeddings = await Promise.all(
-    cachedNames.map(({ target, path }) => {
+    localRequest.map(({ target, path, columnName }) => {
       return new Promise((resolve, reject) => {
         readFile(path, "utf-8", (err, data) => {
           if (err) {
             reject(err);
           }
           try {
-            const { embedding }: Embedding = JSON.parse(data);
-            resolve({ target, embedding });
+            const { embedding }: OpenAIEmbedding = JSON.parse(data);
+            resolve({ target, embedding, columnName } satisfies Embedding);
           } catch (e) {
             reject(e);
           }
@@ -89,4 +114,6 @@ export const getEmbeddings = async (columnNames: string[]) => {
   );
 
   embeddings.push(...(cachedEmbeddings as typeof embeddings));
+
+  return embeddings;
 };
