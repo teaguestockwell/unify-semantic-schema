@@ -10,6 +10,13 @@ import {
   sampleComparators,
   sampleTxMap,
 } from "./sample-transformers";
+import { getColumnNameClusters } from "./get-column-name-cluster";
+
+const outColumnNames = [
+  "date",
+  "description",
+  "amount",
+];
 
 const main = async () => {
   const dir = "data";
@@ -25,9 +32,17 @@ const main = async () => {
     name,
     rows: parseCsv(data),
   }));
-  const embeddings = await getEmbeddings(tables.flatMap((t) => t.rows?.[0] ?? []));
+  const columnNameEmbeddings = await getEmbeddings([
+    ...new Set(tables.flatMap((t) => t.rows?.[0] ?? [])),
+  ]);
+  const outColumnNameEmbeddings = await getEmbeddings(outColumnNames);
+  const coalesceMap = getColumnNameClusters(
+    columnNameEmbeddings,
+    outColumnNameEmbeddings
+  );
+  console.log({ coalesceMap });
   const unioned = unionTables(tables);
-  const coalesced = coalesceTable(unioned, sampleCoalesceMap);
+  const coalesced = coalesceTable(unioned, coalesceMap);
   const transformed = transformTable(coalesced, sampleTxMap);
   const sorted = sortTable(transformed, sampleComparators);
   await Promise.all([

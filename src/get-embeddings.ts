@@ -1,17 +1,5 @@
 import { existsSync, readFile, writeFile } from "fs";
-
-type OpenAIEmbedding = {
-  object: "embedding";
-  embedding: number[];
-  index: number;
-};
-
-type Embedding = {
-  columnName: string;
-  target: string;
-  embedding: number[];
-}
-
+import { Embedding, OpenAIEmbedding } from "./types";
 
 const getOpenAiKey = () => {
   const res = process.env.OPENAIKEY;
@@ -24,29 +12,27 @@ const getOpenAiKey = () => {
 const model:
   | "text-embedding-ada-002"
   | "text-embedding-3-small"
-  | "text-embedding-3-large" = "text-embedding-3-small";
+  | "text-embedding-3-large" = "text-embedding-3-large";
 
 export const getEmbeddings = async (columnNames: string[]) => {
-  const requests = [...new Set<string>(columnNames)]
-    .filter((s) => !!s)
-    .map((s) => {
-      const columnName = s;
-      const target = (() => {
-        if (s[0] === `"` && s[s.length - 1] === `"`) {
-          return s.substring(1, s.length - 1);
-        }
-        return s;
-      })();
-      const path = "./cache/" + model + "/" + encodeURIComponent(target);
-      const cached = existsSync(path);
-      return { columnName, target, path, cached };
-    });
+  const requests = [...new Set(columnNames)].map((s) => {
+    const columnName = s;
+    const target = (() => {
+      if (s[0] === `"` && s[s.length - 1] === `"`) {
+        return s.substring(1, s.length - 1);
+      }
+      return s;
+    })();
+    const path = "./cache/" + model + "/" + encodeURIComponent(target);
+    const cached = existsSync(path);
+    return { columnName, target, path, cached };
+  });
   const localRequest = requests.filter((n) => n.cached);
   const remoteRequests = requests.filter((n) => !n.cached);
   const localTargets = localRequest.map((s) => s.target);
   const remoteTargets = remoteRequests.map((s) => s.target);
 
-  console.log({ localTargets, remoteTargets });
+  console.log({ remoteTargets });
 
   const embeddings: Embedding[] = [];
 

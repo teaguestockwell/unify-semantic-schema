@@ -1,0 +1,20 @@
+{
+  "date": [
+    "date",
+    "transaction date",
+    "run date",
+    "posting date",
+    "time",
+    "reference"
+  ],
+  "description": [
+    "original description",
+    "description",
+    "transaction description",
+    "investment",
+    "plan",
+    "asset",
+    "action"
+  ],
+  "amount": ["debit", "credit", "amount", "amount ($)", "transaction amount"]
+}

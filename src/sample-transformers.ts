@@ -15,7 +15,7 @@ export const sampleCoalesceMap = {
     "investment",
     "plan",
     "asset",
-    "action"
+    "action",
   ],
   credit: ["credit"],
   debit: ["debit", "amount", "amount ($)", "transaction amount"],
@@ -27,7 +27,7 @@ export const sampleTxMap = {
       const d = new Date(s);
       const yyyy = d.getFullYear();
       const mm =
-        ((d.getMonth() + 1) + "").length == 1
+        (d.getMonth() + 1 + "").length == 1
           ? "0" + (d.getMonth() + 1)
           : d.getMonth() + 1;
       const dd =
