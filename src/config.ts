@@ -2,18 +2,16 @@ import { Comparators, Transformers } from "./types";
 
 /**
  * the semantic, desirable column names used to unify the schema
- *
- * each table's columns will be clustered with on of the centroids
- * then each cluster will be sorted by semantic similarity to the centroid
- * input column names will be coalesced in order or most to least similar to the centroid
+ * each table's columns will be placed into a group (cluster) of one centroid
+ * each cluster will be sorted by semantic similarity to the centroid
+ * each cluster will be used to coalesce the output table by looking for the most to least similar actual column name
  */
 export const centroids = ["date", "description", "amount $"] as const;
 type Centroid = (typeof centroids)[number];
 
 /**
- * before sorting with comparators, a centroid needs to be normalized so it can be sorted
- *
- * transformers are run on every cell of with the same name from the coalesced table
+ * transformers are applied to normalize each cell in the coalesced table with the same name
+ * the 'date' transformer standardizes date strings so they can be sorted
  */
 export const transformers: Transformers<Centroid> = {
   date: (s: string) => {
@@ -34,11 +32,11 @@ export const transformers: Transformers<Centroid> = {
 };
 
 /**
- * finally sort the table
+ * finally sort the table by applying each comparator first to last
  */
 export const comparators: Comparators<Centroid> = [
   {
-    coalescedColumnName: "date",
+    centroid: "date",
     comparator: (a: string, z: string) => {
       return a.localeCompare(z);
     },

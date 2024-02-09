@@ -6,7 +6,7 @@ import { writeCsv } from "./write-csv";
 import { getEmbeddings } from "./get-embeddings";
 import { coalesceTable, sortTable, transformTable } from "./transform-table";
 import { centroids, transformers, comparators } from "./config";
-import { getColumnNameClusters } from "./get-column-name-cluster";
+import { getCentroidCoalesceCluster } from "./get-centroid-coalesce-cluster";
 
 const main = async () => {
   const dir = "data";
@@ -27,11 +27,10 @@ const main = async () => {
     ...new Set(tables.flatMap((t) => t.rows?.[0] ?? [])),
   ]);
   const centroidEmbeddings = await getEmbeddings(centroids);
-  const coalesceMap = getColumnNameClusters(
+  const coalesceMap = getCentroidCoalesceCluster(
     columnNameEmbeddings,
     centroidEmbeddings
   );
-  console.log({ coalesceMap });
 
   const unioned = unionTables(tables);
   const coalesced = coalesceTable(unioned, coalesceMap);

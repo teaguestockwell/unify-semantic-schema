@@ -11,7 +11,7 @@ export type Embedding = {
 };
 
 export type Comparator<T = string> = {
-  coalescedColumnName: T;
+  centroid: T;
   comparator: (a: string, z: string) => number;
 };
 
@@ -24,5 +24,5 @@ export type Transformers<T extends string | number | symbol = string> = Partial<
 >;
 
 export type CentroidCoalesceMap = {
-  [coalescedColumnName: string]: string[];
+  [centroid: string]: string[];
 };

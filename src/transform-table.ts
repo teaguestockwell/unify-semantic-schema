@@ -2,9 +2,9 @@ import { CentroidCoalesceMap, Comparator } from "./types";
 
 export const coalesceTable = (
   table: string[][],
-  coalescedColumnNameToChildColumnNames: CentroidCoalesceMap
+  centroidToChildColumnNames: CentroidCoalesceMap
 ) => {
-  const coalescedTable = [Object.keys(coalescedColumnNameToChildColumnNames)];
+  const coalescedTable = [Object.keys(centroidToChildColumnNames)];
   const columnNamesToIndex: { [columnName: string]: number } = {};
   for (
     let columnNameIndex = 0;
@@ -23,10 +23,8 @@ export const coalesceTable = (
       coalescedColumnIndex < coalescedTable[0].length;
       coalescedColumnIndex++
     ) {
-      const coalescedColumnName = coalescedTable[0][coalescedColumnIndex];
-      for (const childColumnName of coalescedColumnNameToChildColumnNames[
-        coalescedColumnName
-      ]) {
+      const centroid = coalescedTable[0][coalescedColumnIndex];
+      for (const childColumnName of centroidToChildColumnNames[centroid]) {
         const childColumnIndex = columnNamesToIndex[childColumnName];
         const childColumnValue = row[childColumnIndex];
         if (childColumnValue !== undefined && childColumnValue !== "") {
@@ -43,7 +41,7 @@ export const coalesceTable = (
 
 export const transformTable = (
   table: string[][],
-  txMap: { [coalescedColumnName: string]: (s: string) => string }
+  txMap: { [centroid: string]: (s: string) => string }
 ) => {
   const transformedTabled = [[...table[0]]];
   for (let rowIndex = 1; rowIndex < table.length; rowIndex++) {
@@ -72,8 +70,8 @@ export const sortTable = (table: string[][], comparators: Comparator[]) => {
   }
 
   sortedTable.sort((rowA, rowZ) => {
-    for (const { coalescedColumnName, comparator } of comparators) {
-      const idx = columnNamesToIndex[coalescedColumnName];
+    for (const { centroid, comparator } of comparators) {
+      const idx = columnNamesToIndex[centroid];
       const res = comparator(rowA[idx], rowZ[idx]);
       if (res !== 0) return res;
     }

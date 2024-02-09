@@ -1,7 +1,7 @@
 import { CentroidCoalesceMap, Embedding } from "./types";
 import { getCosineSimilarity } from "./get-cosign-similarity";
 
-export const getColumnNameClusters = (
+export const getCentroidCoalesceCluster = (
   columns: Embedding[],
   centroids: Embedding[]
 ) => {
@@ -54,5 +54,6 @@ export const getColumnNameClusters = (
     }
   }
 
+  console.log({ coalesceMap });
   return coalesceMap;
 };

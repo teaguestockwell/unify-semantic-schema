@@ -1,20 +1,15 @@
 import { existsSync, readFile, writeFile } from "fs";
 import { Embedding, OpenAIEmbedding } from "./types";
-
-const getOpenAiKey = () => {
-  const res = process.env.OPENAIKEY;
-  if (!res) {
-    throw new Error("no open ai key in .env");
-  }
-  return res;
-};
+import { getEnv } from "./get-env";
 
 const model:
   | "text-embedding-ada-002"
   | "text-embedding-3-small"
   | "text-embedding-3-large" = "text-embedding-3-large";
 
-export const getEmbeddings = async (columnNames: readonly string[] | string[]) => {
+export const getEmbeddings = async (
+  columnNames: readonly string[] | string[]
+) => {
   const requests = [...new Set(columnNames)].map((s) => {
     const columnName = s;
     const target = (() => {
@@ -40,7 +35,7 @@ export const getEmbeddings = async (columnNames: readonly string[] | string[]) =
     const res = await fetch("https://api.openai.com/v1/embeddings", {
       method: "POST",
       headers: {
-        authorization: "Bearer " + getOpenAiKey(),
+        authorization: "Bearer " + getEnv().OPENAIKEY,
         "content-type": "application/json",
       },
       body: JSON.stringify({
