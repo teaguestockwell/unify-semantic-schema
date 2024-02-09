@@ -1,8 +1,8 @@
+import { CentroidCoalesceMap, Comparator } from "./types";
+
 export const coalesceTable = (
   table: string[][],
-  coalescedColumnNameToChildColumnNames: {
-    [coalescedColumnName: string]: string[];
-  }
+  coalescedColumnNameToChildColumnNames: CentroidCoalesceMap
 ) => {
   const coalescedTable = [Object.keys(coalescedColumnNameToChildColumnNames)];
   const columnNamesToIndex: { [columnName: string]: number } = {};
@@ -58,13 +58,7 @@ export const transformTable = (
   return transformedTabled;
 };
 
-export const sortTable = (
-  table: string[][],
-  comparators: {
-    coalescedColumnName: string;
-    comparator: (a: string, z: string) => number;
-  }[]
-) => {
+export const sortTable = (table: string[][], comparators: Comparator[]) => {
   const [header, ...rows] = table;
   const sortedTable: string[][] = JSON.parse(JSON.stringify(rows));
   const columnNamesToIndex: { [columnName: string]: number } = {};

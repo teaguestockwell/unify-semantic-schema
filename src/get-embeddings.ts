@@ -14,7 +14,7 @@ const model:
   | "text-embedding-3-small"
   | "text-embedding-3-large" = "text-embedding-3-large";
 
-export const getEmbeddings = async (columnNames: string[]) => {
+export const getEmbeddings = async (columnNames: readonly string[] | string[]) => {
   const requests = [...new Set(columnNames)].map((s) => {
     const columnName = s;
     const target = (() => {

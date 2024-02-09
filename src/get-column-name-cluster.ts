@@ -1,4 +1,4 @@
-import { Embedding } from "./types";
+import { CentroidCoalesceMap, Embedding } from "./types";
 import { getCosineSimilarity } from "./get-cosign-similarity";
 
 export const getColumnNameClusters = (
@@ -25,7 +25,7 @@ export const getColumnNameClusters = (
   }
 
   const clusters: { [centroid: string]: Comparison[] } = {};
-  const coalesceMap: { [centroid: string]: string[] } = {};
+  const coalesceMap: CentroidCoalesceMap = {};
   for (const centroid of centroids) {
     clusters[centroid.columnName] = [];
     coalesceMap[centroid.columnName] = [];
