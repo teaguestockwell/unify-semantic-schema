@@ -95,6 +95,13 @@ export const getEmbeddings = async (
   );
 
   embeddings.push(...(cachedEmbeddings as typeof embeddings));
+  const order = requests.reduce((acc, cur, i) => {
+    acc[cur.columnName] = i;
+    return acc;
+  }, {} as Record<string, number>);
+  embeddings.sort((a, z) => {
+    return order[a.columnName] - order[z.columnName];
+  });
 
   return embeddings;
 };

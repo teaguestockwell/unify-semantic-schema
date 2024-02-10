@@ -26,3 +26,11 @@ export type Transformers<T extends string | number | symbol = string> = Partial<
 export type CentroidCoalesceMap = {
   [centroid: string]: string[];
 };
+
+export type Classifier = {
+  centroids: string[];
+  targetColumnName: string;
+  minSimilarity?: number;
+};
+
+export type Classifiers = Array<Classifier>;
