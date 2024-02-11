@@ -15,16 +15,15 @@ type Centroid = (typeof centroids)[number];
 export const classifiers: Classifiers<Centroid> = [
   {
     centroids: [
-      "food",
-      "transportation",
-      "investment",
-      "shopping",
       "zelle",
+      "food",
+      "shopping",
+      "transportation",
       "insurance",
-      "transfer",
-      "investment",
       "laundry",
-      "payment"
+      "investment",
+      "transfer",
+      "payment",
     ],
     srcColumnName: "description",
     targetColumnName: "category",
