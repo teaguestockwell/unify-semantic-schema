@@ -1,16 +1,6 @@
 import { Classifiers, Comparators, Transformers } from "./types";
 
 /**
- * applied in order so a classifier may use the previous classification
- */
-export const classifiers: Classifiers = [
-  {
-    centroids: ["food", "car", "income", "investments"],
-    targetColumnName: "category",
-  },
-];
-
-/**
  * the semantic, desirable column names used to unify the schema
  * each table's columns will be placed into a group (cluster) of one centroid
  * each cluster will be sorted by semantic similarity to the centroid
@@ -18,6 +8,28 @@ export const classifiers: Classifiers = [
  */
 export const centroids = ["date", "description", "debit amount qty $"] as const;
 type Centroid = (typeof centroids)[number];
+
+/**
+ * note these will write over columns of the same name
+ */
+export const classifiers: Classifiers<Centroid> = [
+  {
+    centroids: [
+      "food",
+      "transportation",
+      "investment",
+      "shopping",
+      "zelle",
+      "insurance",
+      "transfer",
+      "investment",
+      "laundry",
+      "payment"
+    ],
+    srcColumnName: "description",
+    targetColumnName: "category",
+  },
+];
 
 /**
  * transformers are applied to normalize each cell in the coalesced table with the same name

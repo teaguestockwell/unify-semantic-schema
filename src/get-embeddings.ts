@@ -1,16 +1,25 @@
-import { existsSync, readFile, writeFile } from "fs";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 import { Embedding, OpenAIEmbedding } from "./types";
 import { getEnv } from "./get-env";
+import { createHash } from "crypto";
+import { getChunks } from "./get-chunks";
 
-const model:
+type Model =
   | "text-embedding-ada-002"
   | "text-embedding-3-small"
-  | "text-embedding-3-large" = "text-embedding-3-large";
+  | "text-embedding-3-large";
 
-export const getEmbeddings = async (
-  columnNames: readonly string[] | string[]
+const hash = (s: string) => {
+  const hash = createHash("md5");
+  hash.update(s);
+  return hash.digest("hex");
+};
+
+export const _getEmbeddings = async (
+  columnNames: readonly string[] | string[],
+  model: Model
 ) => {
-  const requests = [...new Set(columnNames)].map((s) => {
+  const requests = columnNames.map((s) => {
     const columnName = s;
     const target = (() => {
       if (s[0] === `"` && s[s.length - 1] === `"`) {
@@ -18,7 +27,7 @@ export const getEmbeddings = async (
       }
       return s;
     })();
-    const path = "./cache/" + model + "/" + encodeURIComponent(target);
+    const path = "./cache/" + model + "/" + hash(target);
     const cached = existsSync(path);
     return { columnName, target, path, cached };
   });
@@ -27,7 +36,9 @@ export const getEmbeddings = async (
   const localTargets = localRequest.map((s) => s.target);
   const remoteTargets = remoteRequests.map((s) => s.target);
 
-  console.log({ remoteTargets });
+  if (remoteTargets.length) {
+    console.log("remote target chars: " + remoteTargets.join("").length);
+  }
 
   const embeddings: Embedding[] = [];
 
@@ -55,18 +66,12 @@ export const getEmbeddings = async (
       data: OpenAIEmbedding[];
     } = await res.json();
 
-    await Promise.all(
-      data.map((d) => {
-        return new Promise((resolve, reject) => {
-          writeFile(remoteRequests[d.index].path, JSON.stringify(d), (err) => {
-            if (err) {
-              reject(err);
-            }
-            resolve(undefined);
-          });
-        });
-      })
-    );
+    for (const d of data) {
+      writeFileSync(remoteRequests[d.index].path, JSON.stringify(d), {
+        encoding: "utf-8",
+      });
+    }
+
     embeddings.push(
       ...data.map((d) => ({
         target: remoteRequests[d.index].target,
@@ -76,25 +81,17 @@ export const getEmbeddings = async (
     );
   }
 
-  const cachedEmbeddings = await Promise.all(
-    localRequest.map(({ target, path, columnName }) => {
-      return new Promise((resolve, reject) => {
-        readFile(path, "utf-8", (err, data) => {
-          if (err) {
-            reject(err);
-          }
-          try {
-            const { embedding }: OpenAIEmbedding = JSON.parse(data);
-            resolve({ target, embedding, columnName } satisfies Embedding);
-          } catch (e) {
-            reject(e);
-          }
-        });
-      });
-    })
-  );
+  for (const { target, path, columnName } of localRequest) {
+    try {
+      const data = readFileSync(path, { encoding: "utf-8" });
+      const { embedding }: OpenAIEmbedding = JSON.parse(data);
+      embeddings.push({ target, embedding, columnName });
+    } catch (e) {
+      console.error("unable to read: ", { path, target, columnName });
+      throw e;
+    }
+  }
 
-  embeddings.push(...(cachedEmbeddings as typeof embeddings));
   const order = requests.reduce((acc, cur, i) => {
     acc[cur.columnName] = i;
     return acc;
@@ -103,5 +100,27 @@ export const getEmbeddings = async (
     return order[a.columnName] - order[z.columnName];
   });
 
+  return embeddings;
+};
+
+export const getEmbeddings = async (
+  columnNames: readonly string[] | string[],
+  model: Model
+) => {
+  console.log(columnNames);
+  if (columnNames.includes("")) {
+    throw new Error(
+      "tried to get embedding of empty string, check the config for empty strings"
+    );
+  }
+  const embeddings: Embedding[] = [];
+  const chunks = getChunks(columnNames as string[], 5);
+  for (const chunk of chunks) {
+    const next = await _getEmbeddings(chunk, model);
+    if (next.length !== chunk.length) {
+      throw new Error("missing embeddings");
+    }
+    embeddings.push(...next);
+  }
   return embeddings;
 };

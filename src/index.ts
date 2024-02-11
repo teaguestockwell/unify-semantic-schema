@@ -4,9 +4,13 @@ import { getFileNames } from "./get-file-names";
 import { unionTables } from "./union-tables";
 import { writeCsv } from "./write-csv";
 import { getEmbeddings } from "./get-embeddings";
-import { coalesceTable, sortTable, transformTable } from "./transform-table";
-import { centroids, transformers, comparators } from "./config";
-import { getCentroidCoalesceCluster } from "./get-centroid-coalesce-cluster";
+import {
+  classifyTable,
+  coalesceTable,
+  sortTable,
+  transformTable,
+} from "./transform-table";
+import { centroids, transformers, comparators, classifiers } from "./config";
 
 const main = async () => {
   const dir = "data";
@@ -23,23 +27,16 @@ const main = async () => {
     rows: parseCsv(data),
   }));
 
-  const columnNameEmbeddings = await getEmbeddings([
-    ...new Set(tables.flatMap((t) => t.rows?.[0] ?? [])),
-  ]);
-  const centroidEmbeddings = await getEmbeddings(centroids);
-  const coalesceMap = getCentroidCoalesceCluster(
-    columnNameEmbeddings,
-    centroidEmbeddings
-  );
-
   const unioned = unionTables(tables);
-  const coalesced = coalesceTable(unioned, coalesceMap);
-  const transformed = transformTable(coalesced, transformers);
+  const coalesced = await coalesceTable(unioned, centroids, getEmbeddings);
+  const classified = await classifyTable(coalesced, classifiers, getEmbeddings);
+  const transformed = transformTable(classified, transformers);
   const sorted = sortTable(transformed, comparators);
 
   await Promise.all([
     writeCsv(unioned, "./out/unioned.csv"),
     writeCsv(coalesced, "./out/coalesced.csv"),
+    writeCsv(classified, "./out/classified.csv"),
     writeCsv(transformed, "./out/transformed.csv"),
     writeCsv(sorted, "./out/sorted.csv"),
   ]);

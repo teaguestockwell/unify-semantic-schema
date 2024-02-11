@@ -1,3 +1,7 @@
+import type { getEmbeddings } from "./get-embeddings";
+
+export type GetEmbeddings = typeof getEmbeddings;
+
 export type OpenAIEmbedding = {
   object: "embedding";
   embedding: number[];
@@ -27,10 +31,10 @@ export type CentroidCoalesceMap = {
   [centroid: string]: string[];
 };
 
-export type Classifier = {
+export type Classifier<T extends string> = {
   centroids: string[];
   targetColumnName: string;
-  minSimilarity?: number;
+  srcColumnName: T;
 };
 
-export type Classifiers = Array<Classifier>;
+export type Classifiers<T extends string> = Array<Classifier<T>>;

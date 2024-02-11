@@ -1,9 +1,101 @@
-import { CentroidCoalesceMap, Comparator } from "./types";
+import { Classifiers, Comparator, Embedding, GetEmbeddings } from "./types";
+import { getCentroidCoalesceCluster } from "./get-centroid-coalesce-cluster";
+import { getCosineSimilarity } from "./get-cosign-similarity";
 
-export const coalesceTable = (
+export const classifyTable = async (
   table: string[][],
-  centroidToChildColumnNames: CentroidCoalesceMap
+  classifiers: Classifiers<string>,
+  getEmbeddings: GetEmbeddings
 ) => {
+  const classifiedTable: string[][] = JSON.parse(JSON.stringify(table));
+  const [header, ...rows] = classifiedTable;
+  const model = "text-embedding-3-small";
+
+  type MostSimilar = { centroid: Embedding; similarity: number } | undefined;
+  const classifications: {
+    [rowI: string]: { [targetColumnName: string]: MostSimilar };
+  } = {};
+  for (let i = 0; i < rows.length; i++) {
+    classifications[i] = {};
+  }
+
+  for (const classification of classifiers) {
+    const classificationCentroids = await getEmbeddings(
+      classification.centroids,
+      model
+    );
+
+    const labeledRows: string[] = [];
+    const rowLabelI = header.indexOf(classification.srcColumnName);
+    if (rowLabelI === -1) {
+      throw new Error("srcColumnName not found - please ensure its a centroid");
+    }
+    for (const row of rows) {
+      labeledRows.push(row[rowLabelI]);
+    }
+    const rowEmbeddings = await getEmbeddings(labeledRows, model);
+
+    for (let rowI = 0; rowI < rows.length; rowI++) {
+      let mostSimilar: MostSimilar;
+      for (const centroid of classificationCentroids) {
+        const similarity = getCosineSimilarity(
+          rowEmbeddings[rowI].embedding,
+          centroid.embedding
+        );
+        if (!mostSimilar || mostSimilar.similarity < similarity) {
+          mostSimilar = { similarity, centroid };
+        }
+      }
+      classifications[rowI][classification.targetColumnName] = mostSimilar;
+    }
+  }
+
+  const deleteColumnIndices = classifiers
+    .map(({ targetColumnName }) =>
+      header.findIndex((columnName) => targetColumnName === columnName)
+    )
+    .filter((i) => i >= 0);
+
+  classifiedTable.forEach((row) => {
+    deleteColumnIndices.forEach((i) => row.splice(i, 1));
+  });
+
+  for (const classification of classifiers) {
+    classifiedTable[0].push(classification.targetColumnName);
+    classifiedTable[0].push(classification.targetColumnName + " confidence");
+  }
+
+  for (const rowI of Object.keys(classifications)) {
+    for (const targetColumnName of Object.keys(classifications[rowI])) {
+      const mostSimilar = classifications[rowI][targetColumnName];
+      if (mostSimilar) {
+        classifiedTable[+rowI + 1].push(mostSimilar.centroid.columnName);
+        classifiedTable[+rowI + 1].push(
+          mostSimilar.similarity.toFixed(3).replace("0.", ".")
+        );
+      } else {
+        classifiedTable[+rowI + 1].push("");
+        classifiedTable[+rowI + 1].push("");
+      }
+    }
+  }
+
+  return classifiedTable;
+};
+
+export const coalesceTable = async (
+  table: string[][],
+  centroids: string[] | readonly string[],
+  getEmbeddings: GetEmbeddings
+) => {
+  const [header] = table;
+  const model = "text-embedding-3-large";
+  const columnNameEmbeddings = await getEmbeddings(header, model);
+  const centroidEmbeddings = await getEmbeddings(centroids, model);
+  const centroidToChildColumnNames = getCentroidCoalesceCluster(
+    columnNameEmbeddings,
+    centroidEmbeddings
+  );
   const coalescedTable = [Object.keys(centroidToChildColumnNames)];
   const columnNamesToIndex: { [columnName: string]: number } = {};
   for (
