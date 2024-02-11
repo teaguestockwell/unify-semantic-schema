@@ -28,6 +28,22 @@ export const classifiers: Classifiers<Centroid> = [
   },
 ];
 
+export const classifiersFunction: Classifiers<Centroid> = [
+  {
+    centroids: [
+      "rent and household utils",
+      "grocery",
+      "eating out",
+      "car",
+      "retail",
+      "travel",
+      "investments and transfers",
+    ],
+    srcColumnName: "description",
+    targetColumnName: "category",
+  },
+];
+
 /**
  * transformers are applied to normalize each cell in the coalesced table with the same name
  * the 'date' transformer standardizes date strings so they can be sorted
@@ -70,8 +86,11 @@ export const reducers = [
         return acc;
       }
       const confidence =
-        row[table[0].indexOf(`${classifiers[0].targetColumnName} confidence`)];
-      const category = row[table[0].indexOf(classifiers[0].targetColumnName)];
+        row[
+          table[0].indexOf(`"${classifiers[0].targetColumnName} confidence"`)
+        ];
+      const category =
+        row[table[0].indexOf(`"${classifiers[0].targetColumnName}"`)];
       if (!confidence || !category) {
         return acc;
       }
@@ -84,7 +103,7 @@ export const reducers = [
       } else {
         let sb = ``;
         for (const cat of classifiers[0].centroids) {
-          const stats = acc[cat];
+          const stats = acc[`"${cat}"`];
           sb +=
             cat +
             " " +
@@ -100,7 +119,7 @@ export const reducers = [
       }
     },
     initialAccumulator: classifiers[0].centroids.reduce((acc, cur) => {
-      (acc as any)[cur] = { num: 0, acc: 0, avg: 0 };
+      (acc as any)[`"${cur}"`] = { num: 0, acc: 0, avg: 0 };
       return acc;
     }, {}),
   } satisfies Reducer<{
@@ -113,7 +132,7 @@ export const reducers = [
         return acc;
       }
       const amount = row[table[0].indexOf(centroids[2])];
-      const category = row[table[0].indexOf(classifiers[0].targetColumnName)];
+      const category = row[table[0].indexOf(`"${classifiers[0].targetColumnName}"`)];
       if (!amount || !category) {
         return acc;
       }
@@ -126,7 +145,7 @@ export const reducers = [
       } else {
         let sb = ``;
         for (const cat of classifiers[0].centroids) {
-          const stats = acc[cat];
+          const stats = acc[`"${cat}"`];
           sb +=
             cat +
             " " +
@@ -142,7 +161,7 @@ export const reducers = [
       }
     },
     initialAccumulator: classifiers[0].centroids.reduce((acc, cur) => {
-      (acc as any)[cur] = { num: 0, acc: 0, avg: 0 };
+      (acc as any)[`"${cur}"`] = { num: 0, acc: 0, avg: 0 };
       return acc;
     }, {}),
   } satisfies Reducer<{

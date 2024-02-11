@@ -125,7 +125,7 @@ const getFunctionClassificationsRemote = async (
         {
           role: "system",
           content:
-            "classify user targets by calling the classify function. do not provide content in your response.",
+            "classify user targets by calling the classify function. do not provide content in your response. do not make up your own enum for the classification",
         },
         {
           role: "user",
@@ -161,9 +161,7 @@ const getFunctionClassificationsRemote = async (
           typeof arg.classification !== "string" ||
           !centroids.includes(arg.classification)
         ) {
-          throw new Error(
-            json.choices[0].message.tool_calls[i].function.arguments
-          );
+          throw "invalid function args: " + json.choices[0].message.tool_calls[i].function.arguments
         }
         args[arg.id] = arg;
       } catch (e) {
@@ -234,7 +232,7 @@ const getFunctionClassificationsCached: typeof getFunctionClassificationsRemote 
 
 export const getFunctionClassifications: typeof getFunctionClassificationsRemote =
   async (targets, centroids, model) => {
-    const chunkSize = 1000;
+    const chunkSize = 300;
     const centroidSize = centroids.join("").length;
 
     const res: string[] = [];

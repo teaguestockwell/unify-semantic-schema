@@ -3,6 +3,7 @@ import {
   Comparator,
   Embedding,
   GetEmbeddings,
+  GetFunctionClassifications,
   Reducer,
 } from "./types";
 import { getCentroidCoalesceCluster } from "./get-centroid-coalesce-cluster";
@@ -69,14 +70,16 @@ export const classifyTable = async (
 
   for (const classification of classifiers) {
     classifiedTable[0].push('"' + classification.targetColumnName + '"');
-    classifiedTable[0].push(classification.targetColumnName + " confidence");
+    classifiedTable[0].push(`"` + classification.targetColumnName + ` confidence"`);
   }
 
   for (const rowI of Object.keys(classifications)) {
     for (const targetColumnName of Object.keys(classifications[rowI])) {
       const mostSimilar = classifications[rowI][targetColumnName];
       if (mostSimilar) {
-        classifiedTable[+rowI + 1].push('"' + mostSimilar.centroid.columnName + '"');
+        classifiedTable[+rowI + 1].push(
+          '"' + mostSimilar.centroid.columnName + '"'
+        );
         classifiedTable[+rowI + 1].push(
           mostSimilar.similarity.toFixed(3).replace("0.", ".")
         );
@@ -84,6 +87,48 @@ export const classifyTable = async (
         classifiedTable[+rowI + 1].push("");
         classifiedTable[+rowI + 1].push("");
       }
+    }
+  }
+
+  return classifiedTable;
+};
+
+export const classifyTableWithFunctions = async (
+  table: string[][],
+  classifiers: Classifiers<string>,
+  getFunctionClassifications: GetFunctionClassifications
+) => {
+  const classifiedTable: string[][] = JSON.parse(JSON.stringify(table));
+  const [header, ...rows] = classifiedTable;
+
+  const deleteColumnIndices = classifiers
+    .map(({ targetColumnName }) =>
+      header.findIndex((columnName) => targetColumnName === columnName)
+    )
+    .filter((i) => i >= 0);
+
+  classifiedTable.forEach((row) => {
+    deleteColumnIndices.forEach((i) => row.splice(i, 1));
+  });
+
+  for (const classification of classifiers) {
+    const srcColumnIndex = header.indexOf(classification.srcColumnName);
+    if (srcColumnIndex < 0) {
+      throw new Error("cant find src column of classifier " + classification);
+    }
+    const cellsToClassify = rows.map((r) => r[srcColumnIndex]);
+    const classifications = await getFunctionClassifications(
+      cellsToClassify,
+      classification.centroids,
+      "gpt-3.5-turbo-0125"
+    );
+
+    header.push('"' + classification.targetColumnName + '"');
+    header.push('"' + classification.targetColumnName + ' confidence"');
+
+    for (let i = 0; i < rows.length; i++) {
+      rows[i][header.length - 2] = `"` + classifications[i] + `"`;
+      rows[i][header.length - 1] = ".0";
     }
   }
 

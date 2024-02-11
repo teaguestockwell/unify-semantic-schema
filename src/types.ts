@@ -1,6 +1,9 @@
 import type { getEmbeddings } from "./get-embeddings";
+import type { getFunctionClassifications } from "./get-function-classification";
 
 export type GetEmbeddings = typeof getEmbeddings;
+
+export type GetFunctionClassifications = typeof getFunctionClassifications;
 
 export type OpenAIEmbedding = {
   object: "embedding";

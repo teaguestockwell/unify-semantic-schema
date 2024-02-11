@@ -6,6 +6,7 @@ import { writeCsv } from "./write-csv";
 import { getEmbeddings } from "./get-embeddings";
 import {
   classifyTable,
+  classifyTableWithFunctions,
   coalesceTable,
   reduceTable,
   sortTable,
@@ -17,8 +18,10 @@ import {
   comparators,
   classifiers,
   reducers,
+  classifiersFunction,
 } from "./config";
 import { Reducer } from "./types";
+import { getFunctionClassifications } from "./get-function-classification";
 
 const main = async () => {
   const dir = "data";
@@ -38,6 +41,11 @@ const main = async () => {
   const unioned = unionTables(tables);
   const coalesced = await coalesceTable(unioned, centroids, getEmbeddings);
   const classified = await classifyTable(coalesced, classifiers, getEmbeddings);
+  // const classified2 = await classifyTableWithFunctions(
+  //   coalesced.slice(0, 30),
+  //   classifiersFunction,
+  //   getFunctionClassifications
+  // );
   const transformed = transformTable(classified, transformers);
   const sorted = sortTable(transformed, comparators);
   const reduced = reduceTable(sorted, reducers as Array<Reducer<unknown>>);
@@ -46,6 +54,7 @@ const main = async () => {
     writeCsv(unioned, "./out/unioned.csv"),
     writeCsv(coalesced, "./out/coalesced.csv"),
     writeCsv(classified, "./out/classified.csv"),
+    // writeCsv(classified2, "./out/classified2.csv"),
     writeCsv(transformed, "./out/transformed.csv"),
     writeCsv(sorted, "./out/sorted.csv"),
     writeCsv(reduced, "./out/reduced.csv"),
