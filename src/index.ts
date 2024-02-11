@@ -7,10 +7,18 @@ import { getEmbeddings } from "./get-embeddings";
 import {
   classifyTable,
   coalesceTable,
+  reduceTable,
   sortTable,
   transformTable,
 } from "./transform-table";
-import { centroids, transformers, comparators, classifiers } from "./config";
+import {
+  centroids,
+  transformers,
+  comparators,
+  classifiers,
+  reducers,
+} from "./config";
+import { Reducer } from "./types";
 
 const main = async () => {
   const dir = "data";
@@ -32,6 +40,7 @@ const main = async () => {
   const classified = await classifyTable(coalesced, classifiers, getEmbeddings);
   const transformed = transformTable(classified, transformers);
   const sorted = sortTable(transformed, comparators);
+  const reduced = reduceTable(sorted, reducers as Array<Reducer<unknown>>);
 
   await Promise.all([
     writeCsv(unioned, "./out/unioned.csv"),
@@ -39,6 +48,7 @@ const main = async () => {
     writeCsv(classified, "./out/classified.csv"),
     writeCsv(transformed, "./out/transformed.csv"),
     writeCsv(sorted, "./out/sorted.csv"),
+    writeCsv(reduced, "./out/reduced.csv"),
   ]);
 };
 

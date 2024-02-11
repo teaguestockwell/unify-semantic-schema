@@ -1,4 +1,4 @@
-import { Classifiers, Comparators, Transformers } from "./types";
+import { Classifiers, Comparators, Reducer, Transformers } from "./types";
 
 /**
  * the semantic, desirable column names used to unify the schema
@@ -15,15 +15,13 @@ type Centroid = (typeof centroids)[number];
 export const classifiers: Classifiers<Centroid> = [
   {
     centroids: [
+      "home expenses, household bills",
+      "retail, grocery, dining, food, online shopping, cafe",
+      "contribution, investment, retirement saving, transfer, income, reimbursement, bonus, autopay",
+      "fuel, transportation, vehicle, auto insurance",
+      "healthcare, medical expense, wellness",
+      "travel expense, accommodation, holiday expense, recreational activity",
       "zelle",
-      "food",
-      "shopping",
-      "transportation",
-      "insurance",
-      "laundry",
-      "investment",
-      "transfer",
-      "payment",
     ],
     srcColumnName: "description",
     targetColumnName: "category",
@@ -37,7 +35,7 @@ export const classifiers: Classifiers<Centroid> = [
 export const transformers: Transformers<Centroid> = {
   date: (s: string) => {
     try {
-      const d = new Date(s);
+      const d = new Date(s.replace(/"/g, ""));
       const yyyy = d.getFullYear();
       const mm =
         (d.getMonth() + 1 + "").length == 1
@@ -62,4 +60,92 @@ export const comparators: Comparators<Centroid> = [
       return a.localeCompare(z);
     },
   },
+];
+
+export const reducers = [
+  {
+    name: "category confidence",
+    fn: (acc, row, i, table) => {
+      if (i === 0) {
+        return acc;
+      }
+      const confidence =
+        row[table[0].indexOf(`${classifiers[0].targetColumnName} confidence`)];
+      const category = row[table[0].indexOf(classifiers[0].targetColumnName)];
+      if (!confidence || !category) {
+        return acc;
+      }
+      acc[category].acc = +(+confidence + acc[category].acc).toFixed(4);
+      acc[category].num++;
+      acc[category].avg = +(acc[category].acc / acc[category].num).toFixed(4);
+
+      if (i !== table.length - 1) {
+        return acc;
+      } else {
+        let sb = ``;
+        for (const cat of classifiers[0].centroids) {
+          const stats = acc[cat];
+          sb +=
+            cat +
+            " " +
+            JSON.stringify(stats)
+              .replace(/"/g, "")
+              .replace(/,/g, " ")
+              .replace("{", "")
+              .replace("}", "") +
+            " ";
+        }
+        sb += ``;
+        return sb as any;
+      }
+    },
+    initialAccumulator: classifiers[0].centroids.reduce((acc, cur) => {
+      (acc as any)[cur] = { num: 0, acc: 0, avg: 0 };
+      return acc;
+    }, {}),
+  } satisfies Reducer<{
+    [classifier: string]: { num: number; acc: number; avg: number };
+  }>,
+  {
+    name: "category total",
+    fn: (acc, row, i, table) => {
+      if (i === 0) {
+        return acc;
+      }
+      const amount = row[table[0].indexOf(centroids[2])];
+      const category = row[table[0].indexOf(classifiers[0].targetColumnName)];
+      if (!amount || !category) {
+        return acc;
+      }
+      acc[category].acc = +(+amount + acc[category].acc).toFixed(4);
+      acc[category].num++;
+      acc[category].avg = +(acc[category].acc / acc[category].num).toFixed(4);
+
+      if (i !== table.length - 1) {
+        return acc;
+      } else {
+        let sb = ``;
+        for (const cat of classifiers[0].centroids) {
+          const stats = acc[cat];
+          sb +=
+            cat +
+            " " +
+            JSON.stringify(stats)
+              .replace(/"/g, "")
+              .replace(/,/g, " ")
+              .replace("{", "")
+              .replace("}", "") +
+            " ";
+        }
+        sb += ``;
+        return sb as any;
+      }
+    },
+    initialAccumulator: classifiers[0].centroids.reduce((acc, cur) => {
+      (acc as any)[cur] = { num: 0, acc: 0, avg: 0 };
+      return acc;
+    }, {}),
+  } satisfies Reducer<{
+    [classifier: string]: { num: number; acc: number; avg: number };
+  }>,
 ];

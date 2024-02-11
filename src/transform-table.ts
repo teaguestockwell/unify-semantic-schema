@@ -1,4 +1,10 @@
-import { Classifiers, Comparator, Embedding, GetEmbeddings } from "./types";
+import {
+  Classifiers,
+  Comparator,
+  Embedding,
+  GetEmbeddings,
+  Reducer,
+} from "./types";
 import { getCentroidCoalesceCluster } from "./get-centroid-coalesce-cluster";
 import { getCosineSimilarity } from "./get-cosign-similarity";
 import { getEscapedCell } from "./get-escaped-cell";
@@ -62,7 +68,7 @@ export const classifyTable = async (
   });
 
   for (const classification of classifiers) {
-    classifiedTable[0].push(classification.targetColumnName);
+    classifiedTable[0].push('"' + classification.targetColumnName + '"');
     classifiedTable[0].push(classification.targetColumnName + " confidence");
   }
 
@@ -70,7 +76,7 @@ export const classifyTable = async (
     for (const targetColumnName of Object.keys(classifications[rowI])) {
       const mostSimilar = classifications[rowI][targetColumnName];
       if (mostSimilar) {
-        classifiedTable[+rowI + 1].push(mostSimilar.centroid.columnName);
+        classifiedTable[+rowI + 1].push('"' + mostSimilar.centroid.columnName + '"');
         classifiedTable[+rowI + 1].push(
           mostSimilar.similarity.toFixed(3).replace("0.", ".")
         );
@@ -142,7 +148,9 @@ export const transformTable = (
     for (let columnIndex = 0; columnIndex < table[0].length; columnIndex++) {
       const txCell = txMap[table[0][columnIndex]];
       const cell = table[rowIndex][columnIndex];
-      transformedRow[columnIndex] = txCell ? txCell(getEscapedCell(cell)) : cell;
+      transformedRow[columnIndex] = txCell
+        ? txCell(getEscapedCell(cell))
+        : cell;
     }
     transformedTabled[rowIndex] = transformedRow;
   }
@@ -173,4 +181,32 @@ export const sortTable = (table: string[][], comparators: Comparator[]) => {
 
   sortedTable.unshift(header);
   return sortedTable;
+};
+
+export const reduceTable = (
+  table: string[][],
+  reducers: Reducer<unknown>[]
+) => {
+  const header = reducers.map((r) => r.name);
+  const out = [header];
+  const summary = [];
+  for (const reducer of reducers) {
+    try {
+      const next = table.reduce(reducer.fn, reducer.initialAccumulator);
+      try {
+        const cell = JSON.stringify(next);
+        summary.push(cell);
+      } catch (e) {
+        console.error(
+          `reducer: ${reducer.name} must return a json serializable accumulator`
+        );
+        throw e;
+      }
+    } catch (e) {
+      console.error(`reducer: ${reducer.name} threw and error`);
+      throw e;
+    }
+  }
+  out.push(summary);
+  return out;
 };

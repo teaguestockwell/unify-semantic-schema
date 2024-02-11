@@ -38,3 +38,14 @@ export type Classifier<T extends string> = {
 };
 
 export type Classifiers<T extends string> = Array<Classifier<T>>;
+
+export type Reducer<Accumulator> = {
+  name: string;
+  initialAccumulator: Accumulator;
+  fn: (
+    accumulator: Accumulator,
+    row: string[],
+    index: number,
+    table: string[][]
+  ) => Accumulator;
+};
