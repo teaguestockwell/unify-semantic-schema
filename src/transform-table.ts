@@ -1,6 +1,7 @@
 import { Classifiers, Comparator, Embedding, GetEmbeddings } from "./types";
 import { getCentroidCoalesceCluster } from "./get-centroid-coalesce-cluster";
 import { getCosineSimilarity } from "./get-cosign-similarity";
+import { getEscapedCell } from "./get-escaped-cell";
 
 export const classifyTable = async (
   table: string[][],
@@ -141,7 +142,7 @@ export const transformTable = (
     for (let columnIndex = 0; columnIndex < table[0].length; columnIndex++) {
       const txCell = txMap[table[0][columnIndex]];
       const cell = table[rowIndex][columnIndex];
-      transformedRow[columnIndex] = txCell ? txCell(cell) : cell;
+      transformedRow[columnIndex] = txCell ? txCell(getEscapedCell(cell)) : cell;
     }
     transformedTabled[rowIndex] = transformedRow;
   }

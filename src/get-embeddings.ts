@@ -3,6 +3,7 @@ import { Embedding, OpenAIEmbedding } from "./types";
 import { getEnv } from "./get-env";
 import { createHash } from "crypto";
 import { getChunks } from "./get-chunks";
+import { getEscapedCell } from "./get-escaped-cell";
 
 type Response = {
   columnName: string;
@@ -26,19 +27,12 @@ const hash = (s: string) => {
   return hash.digest("hex");
 };
 
-const getTarget = (s: string) => {
-  if (s[0] === `"` && s[s.length - 1] === `"`) {
-    return s.substring(1, s.length - 1);
-  }
-  return s;
-};
-
 const getRequests = (
   columnNames: readonly string[] | string[],
   model: Model
 ): RequestGroup => {
   const all = columnNames.map((columnName, index) => {
-    const target = getTarget(columnName);
+    const target = getEscapedCell(columnName);
     const path = "./cache/" + model + "/" + hash(target);
     const cached = existsSync(path);
     return { columnName, target, path, cached, index };
