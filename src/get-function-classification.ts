@@ -1,26 +1,7 @@
 import { getEnv } from "./get-env";
-
-export const getClassificationFunctionDef = (centroids: string[]) => {
-  return {
-    type: "function",
-    function: {
-      name: "classify",
-      parameters: {
-        type: "object",
-        required: ["id", "classification"],
-        properties: {
-          id: {
-            type: "number",
-          },
-          classification: {
-            type: "string",
-            enum: centroids,
-          },
-        },
-      },
-    },
-  };
-};
+import { createHash } from "crypto";
+import { getEscapedCell } from "./get-escaped-cell";
+import { existsSync, readFileSync, writeFileSync } from "fs";
 
 const exampleChatCompletionWithFunctionCall = {
   id: "chatcmpl-8qzwbZzH3Lgk7nEOA8vDSd9eu4h7E",
@@ -85,9 +66,49 @@ const exampleChatCompletionWithFunctionCall = {
 };
 // https://openai.com/pricing#language-models
 type Model = "gpt-3.5-turbo-0125" | "gpt-4-0125-preview";
+
 type ChatCompletionRes = typeof exampleChatCompletionWithFunctionCall;
 
-export const getFunctionClassifications = async (
+type Response = {
+  src: string;
+  target: string;
+  path: string;
+  cached: boolean;
+  index: number;
+  classification: string;
+};
+
+type RequestGroup = { remote: Response[]; local: Response[] };
+
+const hash = (s: string) => {
+  const hash = createHash("md5");
+  hash.update(s);
+  return hash.digest("hex");
+};
+
+const getClassificationFunctionDef = (centroids: string[]) => {
+  return {
+    type: "function",
+    function: {
+      name: "classify",
+      parameters: {
+        type: "object",
+        required: ["id", "classification"],
+        properties: {
+          id: {
+            type: "number",
+          },
+          classification: {
+            type: "string",
+            enum: centroids,
+          },
+        },
+      },
+    },
+  };
+};
+
+const getFunctionClassificationsRemote = async (
   targets: string[],
   centroids: string[],
   model: Model
@@ -122,7 +143,7 @@ export const getFunctionClassifications = async (
   }
 
   const json: ChatCompletionRes = await res.json();
-  console.log(JSON.stringify(json, null, 2));
+  console.log(json.usage);
   const args: { id: number; classification: string }[] = new Array(
     targets.length
   )
@@ -155,3 +176,88 @@ export const getFunctionClassifications = async (
   args.sort((a, z) => a.id - z.id);
   return args.map((arg) => arg.classification);
 };
+
+const getFunctionClassificationsCached: typeof getFunctionClassificationsRemote =
+  async (targets, _centroids, model) => {
+    const centroids = [..._centroids];
+    centroids.sort();
+    const centroidJoined = centroids.join();
+    const responses: Response[] = targets.map((src, index) => {
+      const target = getEscapedCell(src);
+      const path = "./cache/" + model + "/" + hash(target + centroidJoined);
+      const cached = existsSync(path);
+      return { src, target, path, cached, index, classification: "" };
+    });
+    const { local, remote } = responses.reduce(
+      (acc, cur) => {
+        if (cur.cached) {
+          acc.local.push(cur);
+        } else {
+          acc.remote.push(cur);
+        }
+        return acc;
+      },
+      {
+        remote: [],
+        local: [],
+      } as RequestGroup
+    );
+
+    if (local.length) {
+      for (const request of local) {
+        const classification = readFileSync(request.path, {
+          encoding: "utf-8",
+        });
+        responses[request.index].classification = classification;
+      }
+    }
+
+    if (remote.length) {
+      const remoteResponses = await getFunctionClassificationsRemote(
+        remote.map((r) => r.target),
+        centroids,
+        model
+      );
+      for (let i = 0; i < remote.length; i++) {
+        responses[remote[i].index].classification = remoteResponses[i];
+        if (remoteResponses[i]) {
+          writeFileSync(remote[i].path, remoteResponses[i], {
+            encoding: "utf-8",
+          });
+        }
+      }
+    }
+
+    responses.sort((a, z) => a.index - z.index);
+    return responses.map((r) => r.classification);
+  };
+
+export const getFunctionClassifications: typeof getFunctionClassificationsRemote =
+  async (targets, centroids, model) => {
+    const chunkSize = 1000;
+    const centroidSize = centroids.join("").length;
+
+    const res: string[] = [];
+    let chunk = [];
+
+    if (centroidSize > chunkSize) {
+      throw new Error("centroids dont fit into the context window");
+    }
+
+    for (let i = 0; i < targets.length; i++) {
+      chunk.push(targets[i]);
+      const chars = chunk.join().length + centroidSize;
+      if (i === targets.length - 1 || chars >= chunkSize) {
+        console.log("chunking " + model + " chars: " + chars);
+        const nextClassifications = await getFunctionClassificationsCached(
+          chunk,
+          centroids,
+          model
+        );
+        res.push(...nextClassifications);
+        chunk = [];
+      }
+    }
+
+    return res;
+  };
