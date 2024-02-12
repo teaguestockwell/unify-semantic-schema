@@ -1,8 +1,8 @@
-.env
+*.env
+*.http
 
 cache/
 data/
-http/
 node_modules/
 out/
 
@@ -13,5 +13,4 @@ out/
 !cache/gpt-4-0125-preview/.gitkeep
 
 !data/.gitkeep
-!http/.gitkeep
 !out/.gitkeep
