@@ -27,7 +27,9 @@ const classifyTableEmbeddings = async (
     const labeledRows: string[] = [];
     const rowLabelI = header.indexOf(classification.srcColumn);
     if (rowLabelI === -1) {
-      throw new Error("srcColumn not found - please ensure its a centroid");
+      const msg = `srcColumn: ${classification.srcColumn} not found in header: ${JSON.stringify(header)}`
+      console.error(msg)
+      throw new Error(msg);
     }
     for (const row of rows) {
       labeledRows.push(row[rowLabelI]);
@@ -113,7 +115,8 @@ const classifyTableWithFunctions = async (
     const classifications = await getFunctionClassifications(
       cellsToClassify,
       classification.classifications,
-      "gpt-3.5-turbo-0125"
+      "gpt-3.5-turbo-0125",
+      classification.completionSystemPrompt
     );
 
     header.push('"' + classification.targetColumn + '"');

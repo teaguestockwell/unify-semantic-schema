@@ -59,6 +59,7 @@ export type Classifier<T extends string> = {
   targetColumn: string;
   srcColumn: T;
   model: Model;
+  completionSystemPrompt?: string
 };
 
 export type Comparator<T = string> = {
@@ -73,11 +74,6 @@ export type Reducer<T> = {
 
 export type Comparators<T = string> = Array<Comparator<T>>;
 
-export type Transformer = (s: string) => string;
-
-export type Transformers<T extends string | number | symbol = string> = Partial<
-  Record<T, Transformer>
->;
 export type Classifiers<T extends string> = Array<Classifier<T>>;
 
 export type Coalesce = {
@@ -102,15 +98,11 @@ export type Operator<T extends string> =
       arg: Classifier<T>;
     }
   | {
-      name: "transform";
-      arg: Transformers<T>;
-    }
-  | {
       name: "sort";
       arg: Comparators<T>;
     }
   | {
-      name: "summarize";
+      name: "reduce";
       arg: Reducer<unknown[][]>;
     }
   | {

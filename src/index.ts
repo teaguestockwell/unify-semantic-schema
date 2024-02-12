@@ -2,7 +2,6 @@ import { classifyTable } from "./operation-classify-table";
 import { coalesceTable } from "./operation-coalesce-table";
 import { reduceTable } from "./operation-reduce-table";
 import { sortTable } from "./operation-sort-table";
-import { transformTable } from "./operation-transform-table";
 import { unionTables } from "./operation-union-tables";
 import { readTableOrTables, writeCsv } from "./utils-fs";
 import { Operation } from "./types";
@@ -19,10 +18,8 @@ export const unifySemanticSchema = async (operations: Operation[]) => {
       next = await coalesceTable(tables, arg);
     } else if (name === "sort") {
       next = sortTable(tables, arg);
-    } else if (name === "summarize") {
+    } else if (name === "reduce") {
       next = reduceTable(tables, arg);
-    } else if (name === "transform") {
-      next = transformTable(tables, arg);
     } else if (name === "union") {
       next = unionTables(tables);
     }

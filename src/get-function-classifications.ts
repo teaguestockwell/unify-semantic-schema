@@ -1,13 +1,6 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import {
-  ChatCompletion,
-  CompletionModel,
-} from "./types";
-import {
-  getEscapedCell,
-  getHash,
-  getEnv,
-} from "./utils";
+import { ChatCompletion, CompletionModel } from "./types";
+import { getEscapedCell, getHash, getEnv } from "./utils";
 
 type ResponseFunction = {
   src: string;
@@ -48,7 +41,8 @@ const getClassificationFunctionDef = (centroids: string[]) => {
 const getFunctionClassificationsRemote = async (
   targets: string[],
   centroids: string[],
-  model: CompletionModel
+  model: CompletionModel,
+  completionSystemPrompt = ""
 ): Promise<string[]> => {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -62,7 +56,8 @@ const getFunctionClassificationsRemote = async (
         {
           role: "system",
           content:
-            "classify user targets by calling the classify function. do not provide content in your response. do not make up your own enum for the classification",
+            "classify user targets by calling the classify function. do not provide content in your response. do not make up your own enum for the classification. " +
+            completionSystemPrompt,
         },
         {
           role: "user",
@@ -116,7 +111,7 @@ const getFunctionClassificationsRemote = async (
 };
 
 const getFunctionClassificationsCached: typeof getFunctionClassificationsRemote =
-  async (targets, _centroids, model) => {
+  async (targets, _centroids, model, completionSystemPrompt) => {
     const centroids = [..._centroids];
     centroids.sort();
     const centroidJoined = centroids.join();
@@ -154,7 +149,8 @@ const getFunctionClassificationsCached: typeof getFunctionClassificationsRemote 
       const remoteResponses = await getFunctionClassificationsRemote(
         remote.map((r) => r.target),
         centroids,
-        model
+        model,
+        completionSystemPrompt
       );
       for (let i = 0; i < remote.length; i++) {
         responses[remote[i].index].classification = remoteResponses[i];
@@ -171,12 +167,12 @@ const getFunctionClassificationsCached: typeof getFunctionClassificationsRemote 
   };
 
 export const getFunctionClassifications: typeof getFunctionClassificationsRemote =
-  async (targets, centroids, model) => {
+  async (targets, centroids, model, completionSystemPrompt) => {
     const chunkSize = 300;
     const centroidSize = centroids.join("").length;
 
     const res: string[] = [];
-    let chunk = [];
+    let chunk: string[] = [];
 
     if (centroidSize > chunkSize) {
       throw new Error("centroids dont fit into the context window");
@@ -189,7 +185,8 @@ export const getFunctionClassifications: typeof getFunctionClassificationsRemote
         const nextClassifications = await getFunctionClassificationsCached(
           chunk,
           centroids,
-          model
+          model,
+          completionSystemPrompt
         );
         res.push(...nextClassifications);
         chunk = [];

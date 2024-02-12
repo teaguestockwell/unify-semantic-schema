@@ -10,7 +10,7 @@ export const reduceTable = <T>(
     for (const row of acc) {
       const next: string[] = [];
       for (const cell of row) {
-        next.push(`"${cell}"`);
+        next.push((cell as any).toString());
       }
       res.push(next);
     }

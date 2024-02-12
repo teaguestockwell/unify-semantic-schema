@@ -4,12 +4,23 @@ import { Operation } from "./src/types";
 const classifications = [
   "home expenses, household bills",
   "retail, grocery, dining, food, online shopping, cafe",
-  "contribution, investment, retirement saving, transfer, income, reimbursement, bonus, autopay",
+  "contribution, investment, retirement saving, transfer, income, reimbursement, bonus, autopay, interest",
   "fuel, transportation, vehicle, auto insurance",
   "healthcare, medical expense, wellness",
   "travel expense, accommodation, holiday expense, recreational activity",
   "zelle",
 ];
+
+const cleanDate = (s: string) => {
+  const d = new Date(s.replace(/"/g, ""));
+  const yyyy = d.getFullYear();
+  const mm =
+    (d.getMonth() + 1 + "").length == 1
+      ? "0" + (d.getMonth() + 1)
+      : d.getMonth() + 1;
+  const dd = (d.getDate() + "").length === 1 ? "0" + d.getDate() : d.getDate();
+  return yyyy + "-" + mm + "-" + dd;
+};
 
 const operations: Operation[] = [
   {
@@ -30,34 +41,61 @@ const operations: Operation[] = [
   {
     src: "./out/2.csv",
     target: "./out/3.csv",
+    name: "reduce",
+    arg: {
+      initialAccumulator: [],
+      fn: (acc, row, i, table) => {
+        if (i === 0) {
+          acc.push([...row, `summary`]);
+        } else {
+          const description = row[table[0].indexOf("description")];
+          const amount = row[table[0].indexOf("debit amount qty $")];
+          const next = [...row, `"${description} ${amount}"`];
+          const dateI = table[0].indexOf("date");
+          next[dateI] = cleanDate(next[dateI]);
+          acc.push(next);
+        }
+        return acc;
+      },
+    },
+  },
+  {
+    src: "./out/3.csv",
+    target: "./out/3small.csv",
+    name: "reduce",
+    arg: {
+      initialAccumulator: [],
+      fn: (acc, row, i, table) => {
+        if (i === table.length - 1) {
+          return [table[0], ...table.slice(485, 505)];
+        }
+        return acc;
+      },
+    },
+  },
+  {
+    src: "./out/3small.csv",
+    target: "./out/4small.csv",
+    name: "classify",
+    arg: {
+      model: "gpt-3.5-turbo-0125",
+      srcColumn: "summary",
+      targetColumn: "category 3.5",
+      classifications: [
+        "expense",
+        "transfer / investment"
+      ],
+    },
+  },
+  {
+    src: "./out/3.csv",
+    target: "./out/4.csv",
     name: "classify",
     arg: {
       srcColumn: "description",
       targetColumn: "category",
       model: "text-embedding-3-small",
       classifications,
-    },
-  },
-  {
-    src: "./out/3.csv",
-    target: "./out/4.csv",
-    name: "transform",
-    arg: {
-      date: (s: string) => {
-        try {
-          const d = new Date(s.replace(/"/g, ""));
-          const yyyy = d.getFullYear();
-          const mm =
-            (d.getMonth() + 1 + "").length == 1
-              ? "0" + (d.getMonth() + 1)
-              : d.getMonth() + 1;
-          const dd =
-            (d.getDate() + "").length === 1 ? "0" + d.getDate() : d.getDate();
-          return yyyy + "-" + mm + "-" + dd;
-        } catch (e) {
-          return s;
-        }
-      },
     },
   },
   {
@@ -76,7 +114,7 @@ const operations: Operation[] = [
   {
     src: "./out/5.csv",
     target: "./out/6.csv",
-    name: "summarize",
+    name: "reduce",
     arg: {
       initialAccumulator: [
         ["category", "total", "count", "avg"],
