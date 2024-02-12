@@ -10,7 +10,7 @@ import { Operation } from "./types";
 export const unifySemanticSchema = async (operations: Operation[]) => {
   let next: string[][] | undefined;
   for (const operation of operations) {
-    const { src, target, name, arg } = operation as any;
+    const { src, target, name, arg } = operation;
     const tables: any = await readTableOrTables(src);
 
     if (name === "classify") {
@@ -31,6 +31,12 @@ export const unifySemanticSchema = async (operations: Operation[]) => {
       throw new Error("operation did not create the next table");
     }
 
-    await writeCsv(next, target);
+    if (Array.isArray(target)) {
+      for (const t of target) {
+        await writeCsv(next, t);
+      }
+    } else {
+      await writeCsv(next, target);
+    }
   }
 };

@@ -5,12 +5,15 @@ cache/
 data/
 node_modules/
 out/
+dist/
+
 
 !cache/text-embedding-3-large/.gitkeep
 !cache/text-embedding-3-small/.gitkeep
 !cache/text-embedding-ada-002/.gitkeep
 !cache/gpt-3.5-turbo-0125/.gitkeep
 !cache/gpt-4-0125-preview/.gitkeep
+!dist/.gitkeep
 
 !data/.gitkeep
 !out/.gitkeep

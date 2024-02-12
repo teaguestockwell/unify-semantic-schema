@@ -124,5 +124,5 @@ export type Operator<T extends string> =
 
 export type Operation<T extends string = string> = {
   src: string | string[];
-  target: string;
+  target: string | string[];
 } & Operator<T>;

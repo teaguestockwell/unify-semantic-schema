@@ -2,7 +2,6 @@ import { readFile, readdirSync, existsSync, unlinkSync, writeFile } from "fs";
 import { join } from "path";
 
 export const getFileData = async (name: string) => {
-  console.log("reading: " + name);
   return new Promise<string>((resolve, reject) => {
     readFile(name, "utf-8", (err, data) => {
       if (err) {

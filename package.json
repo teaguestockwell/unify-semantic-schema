@@ -4,8 +4,9 @@
   "description": "",
   "main": "index.js",
   "scripts": {
-    "start": "ts-node start.ts",
-    "playground": "ts-node ./playground/index.ts"
+    "start": "npm run compile && node ./dist/start",
+    "playground": "npm run compile && node ./dist/playground/index.ts",
+    "compile": "tsc --outDir ./dist"
   },
   "author": "",
   "license": "MIT",
