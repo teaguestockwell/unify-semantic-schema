@@ -1,23 +1,25 @@
 import {
+  Classifier,
   Classifiers,
   Comparator,
   Embedding,
+  EmbeddingModel,
   GetEmbeddings,
   GetFunctionClassifications,
   Reducer,
+  Transformers,
 } from "./types";
 import { getCentroidCoalesceCluster } from "./get-centroid-coalesce-cluster";
 import { getCosineSimilarity } from "./get-cosign-similarity";
 import { getEscapedCell } from "./get-escaped-cell";
 
-export const classifyTable = async (
+export const classifyTableEmbeddings = async (
   table: string[][],
   classifiers: Classifiers<string>,
   getEmbeddings: GetEmbeddings
 ) => {
   const classifiedTable: string[][] = JSON.parse(JSON.stringify(table));
   const [header, ...rows] = classifiedTable;
-  const model = "text-embedding-3-small";
 
   type MostSimilar = { centroid: Embedding; similarity: number } | undefined;
   const classifications: {
@@ -30,7 +32,7 @@ export const classifyTable = async (
   for (const classification of classifiers) {
     const classificationCentroids = await getEmbeddings(
       classification.centroids,
-      model
+      classification.model as EmbeddingModel
     );
 
     const labeledRows: string[] = [];
@@ -41,7 +43,10 @@ export const classifyTable = async (
     for (const row of rows) {
       labeledRows.push(row[rowLabelI]);
     }
-    const rowEmbeddings = await getEmbeddings(labeledRows, model);
+    const rowEmbeddings = await getEmbeddings(
+      labeledRows,
+      classification.model as EmbeddingModel
+    );
 
     for (let rowI = 0; rowI < rows.length; rowI++) {
       let mostSimilar: MostSimilar;
@@ -70,7 +75,9 @@ export const classifyTable = async (
 
   for (const classification of classifiers) {
     classifiedTable[0].push('"' + classification.targetColumnName + '"');
-    classifiedTable[0].push(`"` + classification.targetColumnName + ` confidence"`);
+    classifiedTable[0].push(
+      `"` + classification.targetColumnName + ` confidence"`
+    );
   }
 
   for (const rowI of Object.keys(classifications)) {
@@ -135,13 +142,30 @@ export const classifyTableWithFunctions = async (
   return classifiedTable;
 };
 
+export const classifyTable = async (
+  table: string[][],
+  classifiers: Classifier<string>,
+  getEmbeddings: GetEmbeddings,
+  getFunctionClassifications: GetFunctionClassifications
+) => {
+  if (classifiers.model.includes("embedding")) {
+    return classifyTableEmbeddings(table, [classifiers], getEmbeddings);
+  } else {
+    return classifyTableWithFunctions(
+      table,
+      [classifiers],
+      getFunctionClassifications
+    );
+  }
+};
+
 export const coalesceTable = async (
   table: string[][],
   centroids: string[] | readonly string[],
-  getEmbeddings: GetEmbeddings
+  getEmbeddings: GetEmbeddings,
+  model: EmbeddingModel
 ) => {
   const [header] = table;
-  const model = "text-embedding-3-large";
   const columnNameEmbeddings = await getEmbeddings(header, model);
   const centroidEmbeddings = await getEmbeddings(centroids, model);
   const centroidToChildColumnNames = getCentroidCoalesceCluster(
@@ -183,10 +207,7 @@ export const coalesceTable = async (
   return coalescedTable;
 };
 
-export const transformTable = (
-  table: string[][],
-  txMap: { [centroid: string]: (s: string) => string }
-) => {
+export const transformTable = (table: string[][], txMap: Transformers) => {
   const transformedTabled = [[...table[0]]];
   for (let rowIndex = 1; rowIndex < table.length; rowIndex++) {
     const transformedRow = new Array<string>(table[0].length);
@@ -228,30 +249,23 @@ export const sortTable = (table: string[][], comparators: Comparator[]) => {
   return sortedTable;
 };
 
-export const reduceTable = (
+export const reduceTable = <T>(
   table: string[][],
-  reducers: Reducer<unknown>[]
-) => {
-  const header = reducers.map((r) => r.name);
-  const out = [header];
-  const summary = [];
-  for (const reducer of reducers) {
-    try {
-      const next = table.reduce(reducer.fn, reducer.initialAccumulator);
-      try {
-        const cell = JSON.stringify(next);
-        summary.push(cell);
-      } catch (e) {
-        console.error(
-          `reducer: ${reducer.name} must return a json serializable accumulator`
-        );
-        throw e;
+  reducer: Reducer<unknown[][]>
+): string[][] => {
+  try {
+    const acc = table.reduce(reducer.fn, reducer.initialAccumulator);
+    const res: string[][] = [];
+    for (const row of acc) {
+      const next: string[] = [];
+      for (const cell of row) {
+        next.push(`"${cell}"`);
       }
-    } catch (e) {
-      console.error(`reducer: ${reducer.name} threw and error`);
-      throw e;
+      res.push(next);
     }
+    return res;
+  } catch (e) {
+    console.error(`reducer threw and error ` + e);
+    throw e;
   }
-  out.push(summary);
-  return out;
 };

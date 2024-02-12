@@ -1,64 +1,53 @@
-import { getFileData } from "./get-file-data";
-import { parseCsv } from "./parse-csv";
-import { getFileNames } from "./get-file-names";
+import { readTableOrTables, writeCsv } from "./get-file-data";
 import { unionTables } from "./union-tables";
-import { writeCsv } from "./write-csv";
 import { getEmbeddings } from "./get-embeddings";
 import {
   classifyTable,
-  classifyTableWithFunctions,
   coalesceTable,
   reduceTable,
   sortTable,
   transformTable,
 } from "./transform-table";
-import {
-  centroids,
-  transformers,
-  comparators,
-  classifiers,
-  reducers,
-  classifiersFunction,
-} from "./config";
-import { Reducer } from "./types";
+import { operations } from "./config";
 import { getFunctionClassifications } from "./get-function-classification";
 
 const main = async () => {
-  const dir = "data";
-  const fileNames = await getFileNames(dir);
-  const rawFiles: { name: string; data: string }[] = [];
-  await Promise.allSettled(
-    fileNames.map(async (name) => {
-      const data = await getFileData(name, dir);
-      rawFiles.push({ name, data });
-    })
-  );
-  const tables = rawFiles.map(({ name, data }) => ({
-    name,
-    rows: parseCsv(data),
-  }));
+  for (const operation of operations) {
+    const { src, target, name, arg } = operation as any;
 
-  const unioned = unionTables(tables);
-  const coalesced = await coalesceTable(unioned, centroids, getEmbeddings);
-  const classified = await classifyTable(coalesced, classifiers, getEmbeddings);
-  // const classified2 = await classifyTableWithFunctions(
-  //   coalesced.slice(0, 30),
-  //   classifiersFunction,
-  //   getFunctionClassifications
-  // );
-  const transformed = transformTable(classified, transformers);
-  const sorted = sortTable(transformed, comparators);
-  const reduced = reduceTable(sorted, reducers as Array<Reducer<unknown>>);
+    const tables: any = await readTableOrTables(src);
+    let next: string[][] | undefined;
 
-  await Promise.all([
-    writeCsv(unioned, "./out/unioned.csv"),
-    writeCsv(coalesced, "./out/coalesced.csv"),
-    writeCsv(classified, "./out/classified.csv"),
-    // writeCsv(classified2, "./out/classified2.csv"),
-    writeCsv(transformed, "./out/transformed.csv"),
-    writeCsv(sorted, "./out/sorted.csv"),
-    writeCsv(reduced, "./out/reduced.csv"),
-  ]);
+    if (name === "classify") {
+      next = await classifyTable(
+        tables,
+        arg,
+        getEmbeddings,
+        getFunctionClassifications
+      );
+    } else if (name === "coalesce") {
+      next = await coalesceTable(
+        tables,
+        arg.centroids,
+        getEmbeddings,
+        arg.model
+      );
+    } else if (name === "sort") {
+      next = sortTable(tables, arg);
+    } else if (name === "summarize") {
+      next = reduceTable(tables, arg);
+    } else if (name === "transform") {
+      next = transformTable(tables, arg);
+    } else if (name === "union") {
+      next = unionTables(tables);
+    }
+
+    if (!next) {
+      throw new Error("operation did not create the next table");
+    }
+
+    await writeCsv(next, target);
+  }
 };
 
 main().catch(console.error);

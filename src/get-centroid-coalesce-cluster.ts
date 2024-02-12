@@ -54,6 +54,5 @@ export const getCentroidCoalesceCluster = (
     }
   }
 
-  console.log({ coalesceMap });
   return coalesceMap;
 };

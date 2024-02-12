@@ -1,9 +1,9 @@
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import { Embedding, OpenAIEmbedding } from "./types";
+import { Embedding, EmbeddingModel, Model, OpenAIEmbedding } from "./types";
 import { getEnv } from "./get-env";
-import { createHash } from "crypto";
 import { getChunks } from "./get-chunks";
 import { getEscapedCell } from "./get-escaped-cell";
+import { getHash } from "./get-hash";
 
 type Response = {
   columnName: string;
@@ -16,24 +16,13 @@ type Response = {
 
 type RequestGroup = { remote: Response[]; local: Response[] };
 
-type Model =
-  | "text-embedding-ada-002"
-  | "text-embedding-3-small"
-  | "text-embedding-3-large";
-
-const hash = (s: string) => {
-  const hash = createHash("md5");
-  hash.update(s);
-  return hash.digest("hex");
-};
-
 const getRequests = (
   columnNames: readonly string[] | string[],
-  model: Model
+  model: EmbeddingModel
 ): RequestGroup => {
   const all = columnNames.map((columnName, index) => {
     const target = getEscapedCell(columnName);
-    const path = "./cache/" + model + "/" + hash(target);
+    const path = "./cache/" + model + "/" + getHash(target);
     const cached = existsSync(path);
     return { columnName, target, path, cached, index };
   });
@@ -56,7 +45,7 @@ const getRequests = (
 
 export const _getEmbeddings = async (
   columnNames: readonly string[] | string[],
-  model: Model
+  model: EmbeddingModel
 ) => {
   const { remote, local } = getRequests(columnNames, model);
   const responses: Response[] = [];
@@ -114,7 +103,7 @@ export const _getEmbeddings = async (
 
 export const getEmbeddings = async (
   columnNames: readonly string[] | string[],
-  model: Model
+  model: EmbeddingModel
 ) => {
   if (columnNames.includes("")) {
     throw new Error(

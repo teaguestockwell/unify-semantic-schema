@@ -1,73 +1,8 @@
 import { getEnv } from "./get-env";
-import { createHash } from "crypto";
 import { getEscapedCell } from "./get-escaped-cell";
 import { existsSync, readFileSync, writeFileSync } from "fs";
-
-const exampleChatCompletionWithFunctionCall = {
-  id: "chatcmpl-8qzwbZzH3Lgk7nEOA8vDSd9eu4h7E",
-  object: "chat.completion",
-  created: 1707641861,
-  model: "gpt-3.5-turbo-0125",
-  choices: [
-    {
-      index: 0,
-      message: {
-        role: "assistant",
-        content: null,
-        tool_calls: [
-          {
-            id: "call_qi7ZR5zNNoxD7QEF6utYFjBg",
-            type: "function",
-            function: {
-              name: "classify",
-              arguments:
-                '{"id": 0, "classification": "retail, grocery, dining, food, online shopping, cafe"}',
-            },
-          },
-          {
-            id: "call_23qBiWQjrbmCbmqLJBm9oc1A",
-            type: "function",
-            function: {
-              name: "classify",
-              arguments:
-                '{"id": 1, "classification": "fuel, transportation, vehicle, auto insurance"}',
-            },
-          },
-          {
-            id: "call_Oo2D7KmDPQCOqrPFTxc1HuEF",
-            type: "function",
-            function: {
-              name: "classify",
-              arguments:
-                '{"id": 2, "classification": "retail, grocery, dining, food, online shopping, cafe"}',
-            },
-          },
-          {
-            id: "call_wtlDY98egsQqjt5mtjFG1pXn",
-            type: "function",
-            function: {
-              name: "classify",
-              arguments:
-                '{"id": 3, "classification": "fuel, transportation, vehicle, auto insurance"}',
-            },
-          },
-        ],
-      },
-      logprobs: null,
-      finish_reason: "tool_calls",
-    },
-  ],
-  usage: {
-    prompt_tokens: 186,
-    completion_tokens: 125,
-    total_tokens: 311,
-  },
-  system_fingerprint: "fp_69829325d0",
-};
-// https://openai.com/pricing#language-models
-type Model = "gpt-3.5-turbo-0125" | "gpt-4-0125-preview";
-
-type ChatCompletionRes = typeof exampleChatCompletionWithFunctionCall;
+import { ChatCompletion, CompletionModel, Model } from "./types";
+import { getHash } from "./get-hash";
 
 type Response = {
   src: string;
@@ -79,12 +14,6 @@ type Response = {
 };
 
 type RequestGroup = { remote: Response[]; local: Response[] };
-
-const hash = (s: string) => {
-  const hash = createHash("md5");
-  hash.update(s);
-  return hash.digest("hex");
-};
 
 const getClassificationFunctionDef = (centroids: string[]) => {
   return {
@@ -111,7 +40,7 @@ const getClassificationFunctionDef = (centroids: string[]) => {
 const getFunctionClassificationsRemote = async (
   targets: string[],
   centroids: string[],
-  model: Model
+  model: CompletionModel
 ): Promise<string[]> => {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -142,7 +71,7 @@ const getFunctionClassificationsRemote = async (
     throw new Error(res.status + " " + (await res.text()));
   }
 
-  const json: ChatCompletionRes = await res.json();
+  const json: ChatCompletion = await res.json();
   console.log(json.usage);
   const args: { id: number; classification: string }[] = new Array(
     targets.length
@@ -161,7 +90,10 @@ const getFunctionClassificationsRemote = async (
           typeof arg.classification !== "string" ||
           !centroids.includes(arg.classification)
         ) {
-          throw "invalid function args: " + json.choices[0].message.tool_calls[i].function.arguments
+          throw (
+            "invalid function args: " +
+            json.choices[0].message.tool_calls[i].function.arguments
+          );
         }
         args[arg.id] = arg;
       } catch (e) {
@@ -182,7 +114,7 @@ const getFunctionClassificationsCached: typeof getFunctionClassificationsRemote 
     const centroidJoined = centroids.join();
     const responses: Response[] = targets.map((src, index) => {
       const target = getEscapedCell(src);
-      const path = "./cache/" + model + "/" + hash(target + centroidJoined);
+      const path = "./cache/" + model + "/" + getHash(target + centroidJoined);
       const cached = existsSync(path);
       return { src, target, path, cached, index, classification: "" };
     });
@@ -246,7 +178,6 @@ export const getFunctionClassifications: typeof getFunctionClassificationsRemote
       chunk.push(targets[i]);
       const chars = chunk.join().length + centroidSize;
       if (i === targets.length - 1 || chars >= chunkSize) {
-        console.log("chunking " + model + " chars: " + chars);
         const nextClassifications = await getFunctionClassificationsCached(
           chunk,
           centroids,
