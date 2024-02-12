@@ -1,0 +1,22 @@
+[
+  {
+    "target": "arby s 6409",
+    "gpt-3.5-turbo-0125": "food",
+    "gpt-4-0125-preview": "food"
+  },
+  {
+    "target": "love's #448",
+    "gpt-3.5-turbo-0125": "car",
+    "gpt-4-0125-preview": "travel"
+  },
+  {
+    "target": "el maestro del taco",
+    "gpt-3.5-turbo-0125": "food",
+    "gpt-4-0125-preview": "food"
+  },
+  {
+    "target": "76 - united pacific 54",
+    "gpt-3.5-turbo-0125": "business",
+    "gpt-4-0125-preview": "car"
+  }
+]

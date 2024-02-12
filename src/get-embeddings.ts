@@ -1,11 +1,8 @@
-import { existsSync, readFileSync, writeFileSync } from "fs";
-import { Embedding, EmbeddingModel, Model, OpenAIEmbedding } from "./types";
-import { getEnv } from "./get-env";
-import { getChunks } from "./get-chunks";
-import { getEscapedCell } from "./get-escaped-cell";
-import { getHash } from "./get-hash";
+import { existsSync, writeFileSync, readFileSync } from "fs";
+import { Embedding, EmbeddingModel, OpenAIEmbedding } from "./types";
+import { getEscapedCell, getHash, getEnv, getChunks } from "./utils";
 
-type Response = {
+type ResponseEmbedding = {
   columnName: string;
   target: string;
   path: string;
@@ -14,12 +11,15 @@ type Response = {
   embedding?: number[];
 };
 
-type RequestGroup = { remote: Response[]; local: Response[] };
+type RequestGroupEmbedding = {
+  remote: ResponseEmbedding[];
+  local: ResponseEmbedding[];
+};
 
 const getRequests = (
   columnNames: readonly string[] | string[],
   model: EmbeddingModel
-): RequestGroup => {
+): RequestGroupEmbedding => {
   const all = columnNames.map((columnName, index) => {
     const target = getEscapedCell(columnName);
     const path = "./cache/" + model + "/" + getHash(target);
@@ -38,17 +38,17 @@ const getRequests = (
     {
       remote: [],
       local: [],
-    } as RequestGroup
+    } as RequestGroupEmbedding
   );
   return grouped;
 };
 
-export const _getEmbeddings = async (
+const _getEmbeddings = async (
   columnNames: readonly string[] | string[],
   model: EmbeddingModel
 ) => {
   const { remote, local } = getRequests(columnNames, model);
-  const responses: Response[] = [];
+  const responses: ResponseEmbedding[] = [];
 
   if (remote.length) {
     const input = remote.map((r) => r.target);

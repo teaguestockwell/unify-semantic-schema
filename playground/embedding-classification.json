@@ -1,0 +1,22 @@
+[
+  {
+    "target": "arby s 6409",
+    "large": "0.2733 food",
+    "small": "0.2916 car"
+  },
+  {
+    "target": "love's #448",
+    "large": "0.2546 travel",
+    "small": "0.2698 travel"
+  },
+  {
+    "target": "el maestro del taco",
+    "large": "0.2469 food",
+    "small": "0.2219 car"
+  },
+  {
+    "target": "76 - united pacific 54",
+    "large": "0.1715 travel",
+    "small": "0.2117 travel"
+  }
+]

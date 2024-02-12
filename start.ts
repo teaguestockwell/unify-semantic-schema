@@ -1,6 +1,7 @@
-import { Operation } from "./types";
+import { unifySemanticSchema } from "./src";
+import { Operation } from "./src/types";
 
-const centroids = [
+const classifications = [
   "home expenses, household bills",
   "retail, grocery, dining, food, online shopping, cafe",
   "contribution, investment, retirement saving, transfer, income, reimbursement, bonus, autopay",
@@ -10,7 +11,7 @@ const centroids = [
   "zelle",
 ];
 
-export const operations: Operation<string>[] = [
+const operations: Operation[] = [
   {
     src: "./data/",
     target: "./out/1.csv",
@@ -31,10 +32,10 @@ export const operations: Operation<string>[] = [
     target: "./out/3.csv",
     name: "classify",
     arg: {
-      srcColumnName: "description",
-      targetColumnName: "category",
+      srcColumn: "description",
+      targetColumn: "category",
       model: "text-embedding-3-small",
-      centroids,
+      classifications,
     },
   },
   {
@@ -65,7 +66,7 @@ export const operations: Operation<string>[] = [
     name: "sort",
     arg: [
       {
-        centroid: "date",
+        column: "date",
         comparator: (a, z) => {
           return a.localeCompare(z);
         },
@@ -79,13 +80,13 @@ export const operations: Operation<string>[] = [
     arg: {
       initialAccumulator: [
         ["category", "total", "count", "avg"],
-        ...centroids.map((c) => [c, 0, 0, 0]),
+        ...classifications.map((c) => [c, 0, 0, 0]),
       ],
       fn: (acc, row, i, table) => {
         const category = row[table[0].indexOf(`"category"`)];
         const confidence = row[table[0].indexOf(`"category confidence"`)];
         if (i > 0) {
-          const j = centroids.indexOf(category.replace(/"/g, "")) + 1;
+          const j = classifications.indexOf(category.replace(/"/g, "")) + 1;
           (acc[j][1] as number) += +confidence;
           (acc[j][2] as number)++;
           (acc[j][3] as number) = (acc[j][1] as number) / (acc[j][2] as number);
@@ -95,3 +96,11 @@ export const operations: Operation<string>[] = [
     },
   },
 ];
+
+unifySemanticSchema(operations)
+  .then(() => {
+    process.exit(0);
+  })
+  .catch((e) => {
+    process.exit(1);
+  });

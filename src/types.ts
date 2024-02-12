@@ -1,10 +1,3 @@
-import type { getEmbeddings } from "./get-embeddings";
-import type { getFunctionClassifications } from "./get-function-classification";
-
-export type GetEmbeddings = typeof getEmbeddings;
-
-export type GetFunctionClassifications = typeof getFunctionClassifications;
-
 export type EmbeddingModel =
   | "text-embedding-ada-002"
   | "text-embedding-3-small"
@@ -62,14 +55,14 @@ export type CentroidCoalesceMap = {
 };
 
 export type Classifier<T extends string> = {
-  centroids: string[];
-  targetColumnName: string;
-  srcColumnName: T;
+  classifications: string[];
+  targetColumn: string;
+  srcColumn: T;
   model: Model;
 };
 
 export type Comparator<T = string> = {
-  centroid: T;
+  column: T;
   comparator: (a: string, z: string) => number;
 };
 

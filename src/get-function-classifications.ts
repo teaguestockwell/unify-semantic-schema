@@ -1,10 +1,15 @@
-import { getEnv } from "./get-env";
-import { getEscapedCell } from "./get-escaped-cell";
 import { existsSync, readFileSync, writeFileSync } from "fs";
-import { ChatCompletion, CompletionModel, Model } from "./types";
-import { getHash } from "./get-hash";
+import {
+  ChatCompletion,
+  CompletionModel,
+} from "./types";
+import {
+  getEscapedCell,
+  getHash,
+  getEnv,
+} from "./utils";
 
-type Response = {
+type ResponseFunction = {
   src: string;
   target: string;
   path: string;
@@ -13,7 +18,10 @@ type Response = {
   classification: string;
 };
 
-type RequestGroup = { remote: Response[]; local: Response[] };
+type RequestGroupFunction = {
+  remote: ResponseFunction[];
+  local: ResponseFunction[];
+};
 
 const getClassificationFunctionDef = (centroids: string[]) => {
   return {
@@ -112,7 +120,7 @@ const getFunctionClassificationsCached: typeof getFunctionClassificationsRemote 
     const centroids = [..._centroids];
     centroids.sort();
     const centroidJoined = centroids.join();
-    const responses: Response[] = targets.map((src, index) => {
+    const responses: ResponseFunction[] = targets.map((src, index) => {
       const target = getEscapedCell(src);
       const path = "./cache/" + model + "/" + getHash(target + centroidJoined);
       const cached = existsSync(path);
@@ -130,7 +138,7 @@ const getFunctionClassificationsCached: typeof getFunctionClassificationsRemote 
       {
         remote: [],
         local: [],
-      } as RequestGroup
+      } as RequestGroupFunction
     );
 
     if (local.length) {

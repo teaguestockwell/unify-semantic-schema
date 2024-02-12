@@ -1,37 +1,22 @@
-import { readTableOrTables, writeCsv } from "./get-file-data";
-import { unionTables } from "./union-tables";
-import { getEmbeddings } from "./get-embeddings";
-import {
-  classifyTable,
-  coalesceTable,
-  reduceTable,
-  sortTable,
-  transformTable,
-} from "./transform-table";
-import { operations } from "./config";
-import { getFunctionClassifications } from "./get-function-classification";
+import { classifyTable } from "./operation-classify-table";
+import { coalesceTable } from "./operation-coalesce-table";
+import { reduceTable } from "./operation-reduce-table";
+import { sortTable } from "./operation-sort-table";
+import { transformTable } from "./operation-transform-table";
+import { unionTables } from "./operation-union-tables";
+import { readTableOrTables, writeCsv } from "./utils-fs";
+import { Operation } from "./types";
 
-const main = async () => {
+export const unifySemanticSchema = async (operations: Operation[]) => {
+  let next: string[][] | undefined;
   for (const operation of operations) {
     const { src, target, name, arg } = operation as any;
-
     const tables: any = await readTableOrTables(src);
-    let next: string[][] | undefined;
 
     if (name === "classify") {
-      next = await classifyTable(
-        tables,
-        arg,
-        getEmbeddings,
-        getFunctionClassifications
-      );
+      next = await classifyTable(tables, arg);
     } else if (name === "coalesce") {
-      next = await coalesceTable(
-        tables,
-        arg.centroids,
-        getEmbeddings,
-        arg.model
-      );
+      next = await coalesceTable(tables, arg);
     } else if (name === "sort") {
       next = sortTable(tables, arg);
     } else if (name === "summarize") {
@@ -49,5 +34,3 @@ const main = async () => {
     await writeCsv(next, target);
   }
 };
-
-main().catch(console.error);
