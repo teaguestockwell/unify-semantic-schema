@@ -1,16 +1,10 @@
-import { readFile, readdirSync, existsSync, unlinkSync, writeFile } from "fs";
-import { join } from "path";
-
-export const getFileData = async (name: string) => {
-  return new Promise<string>((resolve, reject) => {
-    readFile(name, "utf-8", (err, data) => {
-      if (err) {
-        reject(err);
-      }
-      resolve(data);
-    });
-  });
-};
+import {
+  readFileSync,
+  readdirSync,
+  existsSync,
+  unlinkSync,
+  writeFileSync,
+} from "fs";
 
 export const getFileNames = (dir: string) => {
   return readdirSync(dir, "utf-8");
@@ -24,7 +18,7 @@ export const readTableOrTables = async <Src extends string | string[]>(
     src[src.length - 1] !== "/" &&
     src[src.length - 1] !== "\\"
   ) {
-    const file = await getFileData(src as string);
+    const file = readFileSync(src as string, { encoding: "utf-8" });
     return parseCsv(file) as any;
   } else if (
     typeof src === "string" &&
@@ -33,7 +27,9 @@ export const readTableOrTables = async <Src extends string | string[]>(
     const fileNames = await getFileNames(src as string);
     const files: string[] = [];
     for (const name of fileNames) {
-      const file = await getFileData(join(src as string, name));
+      const file = readFileSync(src + name, {
+        encoding: "utf-8",
+      });
       if (file) {
         files.push(file);
       } else {
@@ -44,7 +40,7 @@ export const readTableOrTables = async <Src extends string | string[]>(
   } else if (Array.isArray(src)) {
     const files: string[] = [];
     for (const name of src) {
-      const file = await getFileData(name);
+      const file = readFileSync(name, { encoding: "utf-8" });
       if (file) {
         files.push(file);
       } else {
@@ -62,16 +58,8 @@ export const writeCsv = async (rows: string[][], path: string) => {
   }
 
   const fileContent = rows.map((row) => row.join(",") + "\n").join("");
-
-  return await new Promise((resolve, reject) => {
-    console.log("writing: " + path);
-    writeFile(path, fileContent, "utf-8", (err) => {
-      if (err) {
-        reject(err);
-      }
-      resolve(undefined);
-    });
-  });
+  console.log("writing: " + path);
+  writeFileSync(path, fileContent, { encoding: "utf-8" });
 };
 
 export const parseCsv = (csv: string) => {
