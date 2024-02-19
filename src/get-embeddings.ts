@@ -105,13 +105,9 @@ export const getEmbeddings = async (
   columnNames: readonly string[] | string[],
   model: EmbeddingModel
 ) => {
-  if (columnNames.includes("")) {
-    throw new Error(
-      "tried to get embedding of empty string, check the config for empty strings"
-    );
-  }
+  const cleanColumns = columnNames.map(c => !!c ? c : "nax")
   const embeddings: Embedding[] = [];
-  const chunks = getChunks(columnNames as string[], 5);
+  const chunks = getChunks(cleanColumns as string[], 5);
   for (const chunk of chunks) {
     const next = await _getEmbeddings(chunk, model);
     if (next.length !== chunk.length) {

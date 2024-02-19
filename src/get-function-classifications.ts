@@ -42,7 +42,9 @@ const getFunctionClassificationsRemote = async (
   targets: string[],
   centroids: string[],
   model: CompletionModel,
-  completionSystemPrompt = ""
+  completionSystemPrompt = "",
+  depth = 0,
+  temperature = 0.2
 ): Promise<string[]> => {
   const res = await fetch("https://api.openai.com/v1/chat/completions", {
     method: "POST",
@@ -56,7 +58,7 @@ const getFunctionClassificationsRemote = async (
         {
           role: "system",
           content:
-            "classify user targets by calling the classify function. do not provide content in your response. do not make up your own enum for the classification. " +
+            "classify targets by calling the classify function. do not provide content the response. don't make a new classification " +
             completionSystemPrompt,
         },
         {
@@ -67,6 +69,7 @@ const getFunctionClassificationsRemote = async (
         },
       ],
       tools: [getClassificationFunctionDef(centroids)],
+      temperature,
     }),
   });
 
@@ -90,15 +93,30 @@ const getFunctionClassificationsRemote = async (
         );
         if (
           typeof arg.id !== "number" ||
-          typeof arg.classification !== "string" ||
-          !centroids.includes(arg.classification)
+          typeof arg.classification !== "string"
         ) {
           throw (
             "invalid function args: " +
             json.choices[0].message.tool_calls[i].function.arguments
           );
         }
-        args[arg.id] = arg;
+        if (!centroids.includes(arg.classification)) {
+          if (depth > 5 || temperature > 2) {
+            throw new Error("max attempts for");
+          }
+          const next = await getFunctionClassificationsRemote(
+            [targets[arg.id]],
+            centroids,
+            model,
+            completionSystemPrompt,
+            depth + 1,
+            temperature + 0.2
+          );
+          const classification = next[0];
+          args[arg.id] = { id: arg.id, classification };
+        } else {
+          args[arg.id] = arg;
+        }
       } catch (e) {
         console.error(e);
         continue;
@@ -111,13 +129,17 @@ const getFunctionClassificationsRemote = async (
 };
 
 const getFunctionClassificationsCached: typeof getFunctionClassificationsRemote =
-  async (targets, _centroids, model, completionSystemPrompt) => {
+  async (targets, _centroids, model, completionSystemPrompt = "") => {
     const centroids = [..._centroids];
     centroids.sort();
     const centroidJoined = centroids.join();
     const responses: ResponseFunction[] = targets.map((src, index) => {
       const target = getEscapedCell(src);
-      const path = "./cache/" + model + "/" + getHash(target + centroidJoined);
+      const path =
+        "./cache/" +
+        model +
+        "/" +
+        getHash(target + centroidJoined + completionSystemPrompt);
       const cached = existsSync(path);
       return { src, target, path, cached, index, classification: "" };
     });
@@ -168,7 +190,7 @@ const getFunctionClassificationsCached: typeof getFunctionClassificationsRemote 
 
 export const getFunctionClassifications: typeof getFunctionClassificationsRemote =
   async (targets, centroids, model, completionSystemPrompt) => {
-    const chunkSize = 300;
+    const chunkSize = 1000;
     const centroidSize = centroids.join("").length;
 
     const res: string[] = [];

@@ -1,6 +1,6 @@
 import { getEmbeddings } from "./get-embeddings";
 import { getFunctionClassifications } from "./get-function-classifications";
-import { Classifier, Classifiers, Embedding, EmbeddingModel } from "./types";
+import { ChatCompletion, Classifier, Classifiers, CompletionModel, Embedding, EmbeddingModel } from "./types";
 import { getCosineSimilarity } from "./utils";
 
 const classifyTableEmbeddings = async (
@@ -27,8 +27,10 @@ const classifyTableEmbeddings = async (
     const labeledRows: string[] = [];
     const rowLabelI = header.indexOf(classification.srcColumn);
     if (rowLabelI === -1) {
-      const msg = `srcColumn: ${classification.srcColumn} not found in header: ${JSON.stringify(header)}`
-      console.error(msg)
+      const msg = `srcColumn: ${
+        classification.srcColumn
+      } not found in header: ${JSON.stringify(header)}`;
+      console.error(msg);
       throw new Error(msg);
     }
     for (const row of rows) {
@@ -65,17 +67,15 @@ const classifyTableEmbeddings = async (
   });
 
   for (const classification of classifiers) {
-    classifiedTable[0].push('"' + classification.targetColumn + '"');
-    classifiedTable[0].push(`"` + classification.targetColumn + ` confidence"`);
+    classifiedTable[0].push(classification.targetColumn);
+    classifiedTable[0].push(classification.targetColumn + ` confidence`);
   }
 
   for (const rowI of Object.keys(classifications)) {
     for (const targetColumn of Object.keys(classifications[rowI])) {
       const mostSimilar = classifications[rowI][targetColumn];
       if (mostSimilar) {
-        classifiedTable[+rowI + 1].push(
-          '"' + mostSimilar.centroid.columnName + '"'
-        );
+        classifiedTable[+rowI + 1].push(mostSimilar.centroid.columnName);
         classifiedTable[+rowI + 1].push(
           mostSimilar.similarity.toFixed(3).replace("0.", ".")
         );
@@ -91,7 +91,7 @@ const classifyTableEmbeddings = async (
 
 const classifyTableWithFunctions = async (
   table: string[][],
-  classifiers: Classifiers<string>,
+  classifiers: Classifiers<string>
 ) => {
   const classifiedTable: string[][] = JSON.parse(JSON.stringify(table));
   const [header, ...rows] = classifiedTable;
@@ -115,15 +115,15 @@ const classifyTableWithFunctions = async (
     const classifications = await getFunctionClassifications(
       cellsToClassify,
       classification.classifications,
-      "gpt-3.5-turbo-0125",
+      classification.model as CompletionModel,
       classification.completionSystemPrompt
     );
 
-    header.push('"' + classification.targetColumn + '"');
-    header.push('"' + classification.targetColumn + ' confidence"');
+    header.push(classification.targetColumn);
+    header.push(classification.targetColumn + ' confidence');
 
     for (let i = 0; i < rows.length; i++) {
-      rows[i][header.length - 2] = `"` + classifications[i] + `"`;
+      rows[i][header.length - 2] = classifications[i];
       rows[i][header.length - 1] = ".0";
     }
   }
@@ -133,14 +133,11 @@ const classifyTableWithFunctions = async (
 
 export const classifyTable = async (
   table: string[][],
-  classifiers: Classifier<string>,
+  classifiers: Classifier<string>
 ) => {
   if (classifiers.model.includes("embedding")) {
     return classifyTableEmbeddings(table, [classifiers]);
   } else {
-    return classifyTableWithFunctions(
-      table,
-      [classifiers]
-    );
+    return classifyTableWithFunctions(table, [classifiers]);
   }
 };
