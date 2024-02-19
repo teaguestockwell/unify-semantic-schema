@@ -1,18 +1,13 @@
 import { unifySemanticSchema } from "./src";
 import { Operation } from "./src/types";
 import { getEscapedCell } from "./src/utils";
+import * as config from "./data/config"
 
-const classificationsCoarse = [
-  "home expenses, household bills",
-  "retail, grocery, dining, food, online shopping, cafe",
-  "contribution, investment, retirement saving, transfer, income, reimbursement, bonus, autopay, interest",
-  "fuel, transportation, vehicle, auto insurance",
-  "healthcare, medical expense, wellness",
-  "travel expense, accommodation, holiday expense, recreational activity",
-  "zelle",
-];
-
-const classificationsFine = classificationsCoarse.flatMap(coarse => coarse.split(",")).map(c => c.trim())
+const categories: Record<string, string[]> = config.categories;
+const categoryLookup = Object.entries(categories).reduce((acc, [k, values]) => {
+  values.forEach((e) => (acc[e] = k));
+  return acc;
+}, {} as Record<string, string>);
 
 const cleanDate = (s: string) => {
   const d = new Date(s.replace(/"/g, ""));
@@ -38,62 +33,55 @@ const operations: Operation[] = [
     name: "coalesce",
     arg: {
       model: "text-embedding-3-large",
-      centroids: ["date", "description", "debit amount qty $"],
+      centroids: ["date", "debit amount qty $", "description"],
     },
   },
   {
     src: "./out/2.csv",
     target: "./out/3.csv",
-    name: "reduce",
+    name: "classify",
     arg: {
-      initialAccumulator: [],
-      fn: (acc, row, i, table) => {
-        if (i === 0) {
-          acc.push([...row]);
-        } else {
-          const next = [...row];
-          const dateI = table[0].indexOf("date");
-          next[dateI] = cleanDate(next[dateI]);
-          acc.push(next);
-        }
-        return acc;
-      },
+      srcColumn: "description",
+      targetColumn: "category",
+      model: "text-embedding-3-large",
+      classifications: Object.values(categories).flatMap((c) => c) as string[],
     },
   },
   {
     src: "./out/3.csv",
     target: "./out/4.csv",
-    name: "classify",
-    arg: {
-      srcColumn: "description",
-      targetColumn: "category fine",
-      model: "text-embedding-3-small",
-      classifications: classificationsFine,
-    },
-  },
-  {
-    src: "./out/4.csv",
-    target: "./out/5.csv",
     name: "reduce",
     arg: {
       initialAccumulator: [],
       fn: (acc, row, i, table) => {
+        const next = [...row];
         if (i === 0) {
-          acc.push([...row, `"category coarse"`]);
+          const amountI = table[0].indexOf("debit amount qty $");
+          next[amountI] = "amount";
         } else {
-          const srcI = table[0].indexOf(`"category fine"`);
-          const fineCat = row[srcI];
-          const coarseCat =
-            classificationsCoarse.find((c) => c.includes(getEscapedCell(fineCat))) ?? "";
-          acc.push([...row, `"${coarseCat}"`]);
+          const dateI = table[0].indexOf("date");
+          const catI = table[0].indexOf("category");
+          const amountI = table[0].indexOf("debit amount qty $");
+          next[dateI] = cleanDate(next[dateI]);
+          const nextCat = categoryLookup[next[catI]];
+          next[catI] = nextCat;
+          const _nextAmount = Number(getEscapedCell(next[amountI]));
+          next[amountI] = (() => {
+            const abs = Math.abs(_nextAmount);
+            if (nextCat === "transfer") {
+              return _nextAmount;
+            }
+            return -abs
+          })().toFixed(2)
         }
+        acc.push(next);
         return acc;
       },
     },
   },
   {
-    src: "./out/5.csv",
-    target: "./out/6.csv",
+    src: "./out/4.csv",
+    target: "./out/5.csv",
     name: "sort",
     arg: [
       {
@@ -105,20 +93,44 @@ const operations: Operation[] = [
     ],
   },
   {
-    src: "./out/6.csv",
-    target: "./out/7.csv",
+    src: "./out/5.csv",
+    target: "./out/category-amounts.csv",
     name: "reduce",
     arg: {
       initialAccumulator: [
         ["category", "total", "count", "avg"],
-        ...classificationsCoarse.map((c) => [c, 0, 0, 0]),
+        ...Object.keys(categories).map((c) => [c, 0, 0, 0]),
       ],
       fn: (acc, row, i, table) => {
-        const category = row[table[0].indexOf(`"category coarse"`)];
-        const confidence = row[table[0].indexOf(`"debit amount qty $"`)];
+        const target = row[table[0].indexOf("category")];
+        const quantifier = row[table[0].indexOf("amount")];
         if (i > 0) {
-          const j = classificationsCoarse.indexOf(category.replace(/"/g, "")) + 1;
-          (acc[j][1] as number) += +confidence;
+          const j =
+            Object.keys(categories).indexOf(target.replace(/"/g, "")) + 1;
+          (acc[j][1] as number) += +quantifier;
+          (acc[j][2] as number)++;
+          (acc[j][3] as number) = (acc[j][1] as number) / (acc[j][2] as number);
+        }
+        return acc;
+      },
+    },
+  },
+  {
+    src: "./out/5.csv",
+    target: "./out/category-confidence.csv",
+    name: "reduce",
+    arg: {
+      initialAccumulator: [
+        ["category", "total", "count", "avg"],
+        ...Object.keys(categories).map((c) => [c, 0, 0, 0]),
+      ],
+      fn: (acc, row, i, table) => {
+        const target = row[table[0].indexOf("category")];
+        const quantifier = row[table[0].indexOf("category confidence")];
+        if (i > 0) {
+          const j =
+            Object.keys(categories).indexOf(target.replace(/"/g, "")) + 1;
+          (acc[j][1] as number) += +quantifier;
           (acc[j][2] as number)++;
           (acc[j][3] as number) = (acc[j][1] as number) / (acc[j][2] as number);
         }
